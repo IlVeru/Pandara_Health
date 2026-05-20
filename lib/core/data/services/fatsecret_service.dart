@@ -112,6 +112,8 @@ class FatSecretService {
             'method': 'foods.search',
             'search_expression': query,
             'format': 'json',
+            'region': 'ID',
+            'language': 'id',
           },
         ),
         headers: {
@@ -140,19 +142,28 @@ class FatSecretService {
           final String name = item['food_name'] ?? '';
           final String desc = item['food_description'] ?? '';
 
-          final int calories = _parseValue(desc, r'Calories:\s*(\d+)kcal');
-          final int protein = _parseValue(desc, r'Protein:\s*([\d\.]+)g');
-          final int carbs = _parseValue(desc, r'Carbs:\s*([\d\.]+)g');
-          final int fat = _parseValue(desc, r'Fat:\s*([\d\.]+)g');
-          final String serving = _parseServing(desc);
+          // Use correct single-backslash raw string patterns for regex
+          final double rawCalories = _parseDouble(desc, r'Calories:\s*([\d\.,]+)kcal');
+          final double rawProtein  = _parseDouble(desc, r'Protein:\s*([\d\.]+)g');
+          final double rawCarbs    = _parseDouble(desc, r'Carbs:\s*([\d\.]+)g');
+          final double rawFat      = _parseDouble(desc, r'Fat:\s*([\d\.]+)g');
+          final double rawGrams    = _parseServingGrams(desc);
+          final String rawServing  = _parseServing(desc);
+
+          final String foodId = item['food_id']?.toString() ?? '';
+
+          // Normalize to per-100g if serving size is unreasonably large (>500g)
+          final double scale = rawGrams > 500 ? (100.0 / rawGrams) : 1.0;
+          final String serving = rawGrams > 500 ? 'per 100g' : rawServing;
 
           return FoodItem(
+            foodId: foodId.isNotEmpty ? foodId : null,
             name: name,
-            calories: calories,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
-            serving: serving,
+            calories: (rawCalories * scale).round(),
+            protein:  (rawProtein  * scale).round(),
+            carbs:    (rawCarbs    * scale).round(),
+            fat:      (rawFat      * scale).round(),
+            serving:  serving,
           );
         }).toList();
       } else {
@@ -168,18 +179,95 @@ class FatSecretService {
         .toList();
   }
 
-  int _parseValue(String desc, String pattern) {
+  Future<List<FoodItem>> getFoodServings(String foodId, String defaultName) async {
+    try {
+      await _fetchToken();
+      if (_accessToken == null) return [];
+
+      final response = await http.get(
+        Uri.parse('https://platform.fatsecret.com/rest/server.api').replace(
+          queryParameters: {
+            'method': 'food.get',
+            'food_id': foodId,
+            'format': 'json',
+            'region': 'ID',
+            'language': 'id',
+          },
+        ),
+        headers: {
+          'Authorization': 'Bearer $_accessToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final servingsData = data['food']?['servings']?['serving'];
+        
+        if (servingsData == null) return [];
+
+        List<dynamic> servingList = [];
+        if (servingsData is List) {
+          servingList = servingsData;
+        } else if (servingsData is Map) {
+          servingList = [servingsData];
+        }
+
+        return servingList.map((item) {
+          final String servingDesc = item['serving_description'] ?? '1 Porsi';
+          final double calories = double.tryParse(item['calories']?.toString() ?? '0') ?? 0;
+          final double protein = double.tryParse(item['protein']?.toString() ?? '0') ?? 0;
+          final double carbs = double.tryParse(item['carbohydrate']?.toString() ?? '0') ?? 0;
+          final double fat = double.tryParse(item['fat']?.toString() ?? '0') ?? 0;
+
+          return FoodItem(
+            foodId: foodId,
+            name: defaultName,
+            calories: calories.round(),
+            protein: protein.round(),
+            carbs: carbs.round(),
+            fat: fat.round(),
+            serving: servingDesc,
+          );
+        }).toList();
+      }
+    } catch (e) {
+      print('FatSecret Get Food Exception: $e');
+    }
+    return [];
+  }
+
+  /// Parse a numeric value (double) from [desc] with a single capture group.
+  double _parseDouble(String desc, String pattern) {
     final match = RegExp(pattern, caseSensitive: false).firstMatch(desc);
     if (match != null) {
-      final double? parsedVal = double.tryParse(match.group(1)!);
-      if (parsedVal != null) return parsedVal.round();
+      // Remove thousands commas: "4,500" → "4500"
+      final cleaned = match.group(1)!.replaceAll(',', '');
+      return double.tryParse(cleaned) ?? 0.0;
     }
-    return 0;
+    return 0.0;
+  }
+
+  int _parseValue(String desc, String pattern) => _parseDouble(desc, pattern).round();
+
+  /// Extracts gram amount from the serving description.
+  /// "Per 1 cup (240g)" → 240.0 | "Per 4,500g" → 4500.0 | "Per 100g" → 100.0
+  double _parseServingGrams(String desc) {
+    // Try parenthesised format first: (240g)
+    final bracketMatch = RegExp(r'\(([\d,\.]+)g\)', caseSensitive: false).firstMatch(desc);
+    if (bracketMatch != null) {
+      return double.tryParse(bracketMatch.group(1)!.replaceAll(',', '')) ?? 100.0;
+    }
+    // Try "Per Xg" format
+    final perMatch = RegExp(r'Per\s+([\d,\.]+)\s*g', caseSensitive: false).firstMatch(desc);
+    if (perMatch != null) {
+      return double.tryParse(perMatch.group(1)!.replaceAll(',', '')) ?? 100.0;
+    }
+    return 100.0; // Default: assume 100g
   }
 
   String _parseServing(String desc) {
     final parts = desc.split(' - ');
-    if (parts.isNotEmpty) return parts[0];
+    if (parts.isNotEmpty && parts[0].trim().isNotEmpty) return parts[0].trim();
     return '1 Porsi';
   }
 }

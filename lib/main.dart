@@ -4,6 +4,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/data/models/hive_models.dart';
+import 'core/data/models/weekly_report_model.dart';
+import 'core/data/services/report_service.dart';
+import 'core/data/services/seed_data_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +21,7 @@ void main() async {
   if (!Hive.isAdapterRegistered(3)) Hive.registerAdapter(VitalsRecordAdapter());
   if (!Hive.isAdapterRegistered(4)) Hive.registerAdapter(NutritionRecordAdapter());
   if (!Hive.isAdapterRegistered(5)) Hive.registerAdapter(SymptomRecordAdapter());
+  if (!Hive.isAdapterRegistered(6)) Hive.registerAdapter(WeeklyReportModelAdapter());
 
   // Open Boxes
   await Future.wait([
@@ -28,7 +32,11 @@ void main() async {
     Hive.openBox<NutritionRecord>('nutrition_box'),
     Hive.openBox<SymptomRecord>('symptom_box'),
     Hive.openBox('settings_box'),
+    Hive.openBox<WeeklyReportModel>('weekly_reports'),
   ]);
+
+  await ReportService().init();
+  await SeedDataService().seedAll();
 
   runApp(
     const ProviderScope(

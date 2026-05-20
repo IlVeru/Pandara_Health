@@ -67,20 +67,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     const SizedBox(height: 16),
                     _buildQuickAccessGrid(),
                     const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Rekomendasi Dokter',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1D1D1D)),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Lihat Semua', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
+                    const Text(
+                      'Daftar Dokter Spesialis',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1D1D1D)),
                     ),
                     const SizedBox(height: 16),
                     _buildDoctorList(),
@@ -295,17 +284,35 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(doc['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(doc['spec']!, style: const TextStyle(color: Colors.black38, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.medical_services, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                doc['spec']!,
+                                style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Colors.orange, size: 16),
+                          const Icon(Icons.business_center_outlined, size: 14, color: Colors.black26),
                           const SizedBox(width: 4),
-                          Text(doc['rate']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          const SizedBox(width: 8),
-                          Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.black12, shape: BoxShape.circle)),
-                          const SizedBox(width: 8),
-                          Flexible(child: Text('${doc['exp']} Pengalaman', style: const TextStyle(color: Colors.black38, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          Flexible(child: Text('${doc['exp']} Pengalaman', style: const TextStyle(color: Colors.black38, fontSize: 12, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     ],

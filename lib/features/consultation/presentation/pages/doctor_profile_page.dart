@@ -25,7 +25,9 @@ class DoctorProfilePage extends StatelessWidget {
                   Image.asset('assets/images/logo_health_fix.png', height: 32),
                   const CircleAvatar(
                     radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
+                    backgroundImage: NetworkImage(
+                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+                    ),
                   ),
                 ],
               ),
@@ -36,7 +38,7 @@ class DoctorProfilePage extends StatelessWidget {
                   children: [
                     // Top Photo with Gradient Overlay
                     _buildDoctorHeader(context),
-                    
+
                     // Floating Info Card
                     Transform.translate(
                       offset: const Offset(0, -40),
@@ -74,7 +76,9 @@ class DoctorProfilePage extends StatelessWidget {
           width: double.infinity,
           decoration: const BoxDecoration(
             image: DecorationImage(
-              image: NetworkImage('https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=600'),
+              image: NetworkImage(
+                'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=600',
+              ),
               fit: BoxFit.cover,
             ),
           ),
@@ -112,7 +116,11 @@ class DoctorProfilePage extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: Column(
@@ -126,17 +134,41 @@ class DoctorProfilePage extends StatelessWidget {
                 children: [
                   Text(
                     'Dr. Sarah\nAnindita',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(color: const Color(0xFF80E1D1).withValues(alpha: 0.6), borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF80E1D1).withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: const Column(
                   children: [
-                    Text('8', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1D5A56))),
-                    Text('TAHUN', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF1D5A56))),
+                    Text(
+                      '8',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF1D5A56),
+                      ),
+                    ),
+                    Text(
+                      'TAHUN',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1D5A56),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -145,9 +177,20 @@ class DoctorProfilePage extends StatelessWidget {
           const SizedBox(height: 12),
           const Row(
             children: [
-              Icon(Icons.medical_services_outlined, color: AppColors.primary, size: 16),
+              Icon(
+                Icons.medical_services_outlined,
+                color: AppColors.primary,
+                size: 16,
+              ),
               SizedBox(width: 8),
-              Text('Spesialis Kulit & Kelamin', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                'Spesialis Kulit & Kelamin',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -168,12 +211,22 @@ class DoctorProfilePage extends StatelessWidget {
     return Container(
       width: 90,
       padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         children: [
           Icon(icon, color: Colors.black38, size: 20),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black54)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
+            ),
+          ),
         ],
       ),
     );
@@ -182,11 +235,17 @@ class DoctorProfilePage extends StatelessWidget {
   Widget _buildAboutSection() {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tentang Dokter', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            'Tentang Dokter',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           SizedBox(height: 12),
           Text(
             'Dr. Sarah Anindita adalah pakar dermatologi dengan fokus pada kesehatan kulit preventif dan perawatan regeneratif. Beliau aktif dalam penelitian klinis untuk pengobatan jerawat dan rejuvenasi kulit.',
@@ -200,33 +259,62 @@ class DoctorProfilePage extends StatelessWidget {
   Widget _buildLocationSection() {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.03), borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Alamat Praktik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Alamat Praktik',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 24),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_on_outlined,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Pandara Medical Center,', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    Text('Jl. Sudirman No. 45, Jakarta Pusat', style: TextStyle(color: Colors.black38, fontSize: 13)),
+                    Text(
+                      'Pandara Medical Center,',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      'Jl. Sudirman No. 45, Jakarta Pusat',
+                      style: TextStyle(color: Colors.black38, fontSize: 13),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          const Text('LIHAT DI PETA >', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text(
+            'LIHAT DI PETA >',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -240,15 +328,23 @@ class DoctorProfilePage extends StatelessWidget {
             const String name = "Dr. Sarah Anindita";
             const String phone = "6285176914026";
             final String reportText = WeeklyReportData.getFormattedReportText();
-            final String message = "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.\n\n$reportText\n\nMohon arahannya dokter, terima kasih.";
-            final Uri url = Uri.parse("https://api.whatsapp.com/send?phone=$phone&text=${Uri.encodeComponent(message)}");
+            final String message =
+                "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.\n\n$reportText\n\nMohon arahannya dokter, terima kasih.";
+            final Uri url = Uri.parse(
+              "https://api.whatsapp.com/send?phone=$phone&text=${Uri.encodeComponent(message)}",
+            );
             try {
-              final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+              final bool launched = await launchUrl(
+                url,
+                mode: LaunchMode.externalApplication,
+              );
               if (!launched) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terinstal.'),
+                      content: Text(
+                        'Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terinstal.',
+                      ),
                       backgroundColor: Colors.redAccent,
                     ),
                   );
@@ -268,7 +364,9 @@ class DoctorProfilePage extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             minimumSize: const Size(double.infinity, 56),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             elevation: 0,
           ),
           child: const Row(
@@ -276,14 +374,21 @@ class DoctorProfilePage extends StatelessWidget {
             children: [
               Icon(Icons.chat_bubble_outline, size: 20),
               SizedBox(width: 8),
-              Text('Mulai Konsultasi (WhatsApp)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                'Mulai Konsultasi (WhatsApp)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 16),
         const Text(
           'Tersedia Hari Ini: 09:00 - 17:00 WIB',
-          style: TextStyle(color: Colors.black38, fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black38,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );

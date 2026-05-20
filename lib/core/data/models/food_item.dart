@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 class FoodItem {
+  final String? foodId;
   final String name;
   final int calories;
   final int protein;
@@ -9,6 +10,7 @@ class FoodItem {
   final String serving;
 
   FoodItem({
+    this.foodId,
     required this.name,
     required this.calories,
     required this.protein,
@@ -19,6 +21,7 @@ class FoodItem {
 
   Map<String, dynamic> toMap() {
     return {
+      'foodId': foodId,
       'name': name,
       'calories': calories,
       'protein': protein,
@@ -30,6 +33,7 @@ class FoodItem {
 
   factory FoodItem.fromMap(Map<String, dynamic> map) {
     return FoodItem(
+      foodId: map['foodId'],
       name: map['name'] ?? '',
       calories: map['calories'] ?? 0,
       protein: map['protein'] ?? 0,

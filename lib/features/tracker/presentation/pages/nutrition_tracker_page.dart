@@ -631,8 +631,23 @@ class _NutritionTrackerPageState extends ConsumerState<NutritionTrackerPage> {
                     title: Text(food.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     subtitle: Text('${food.serving} • ${food.calories} kcal', style: const TextStyle(color: Colors.black38, fontSize: 11)),
                     trailing: const Icon(Icons.add_circle, color: AppColors.primary, size: 20),
-                    onTap: () {
-                      _showQuantityDialog(food);
+                    onTap: () async {
+                      final nav = Navigator.of(context);
+                      if (food.foodId != null) {
+                        setState(() { _isLoadingSearch = true; });
+                        final servings = await ref.read(fatSecretServiceProvider).getFoodServings(food.foodId!, food.name);
+                        setState(() { _isLoadingSearch = false; });
+                        
+                        if (servings.isNotEmpty) {
+                          if (!mounted) return;
+                          _showServingSelectionDialog(food, servings);
+                        } else {
+                          _showQuantityDialog(food);
+                        }
+                      } else {
+                        _showQuantityDialog(food);
+                      }
+                      
                       _searchController.clear();
                       setState(() {
                         _searchResults = [];
@@ -1002,6 +1017,50 @@ class _NutritionTrackerPageState extends ConsumerState<NutritionTrackerPage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showServingSelectionDialog(FoodItem baseFood, List<FoodItem> servings) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Pilih Takaran untuk ${baseFood.name}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: servings.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.black12),
+                  itemBuilder: (context, index) {
+                    final s = servings[index];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      title: Text(s.serving, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text('${s.calories} kcal • P: ${s.protein}g, K: ${s.carbs}g, L: ${s.fat}g', style: const TextStyle(fontSize: 12)),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showQuantityDialog(s);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
