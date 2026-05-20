@@ -21,9 +21,11 @@ class FatSecretService {
     FoodItem(name: 'Telur Rebus', calories: 78, protein: 6, carbs: 1, fat: 5, serving: '1 Butir'),
     FoodItem(name: 'Ayam Goreng', calories: 246, protein: 25, carbs: 0, fat: 16, serving: '1 Potong (100g)'),
     FoodItem(name: 'Ayam Bakar', calories: 180, protein: 26, carbs: 2, fat: 8, serving: '1 Potong (100g)'),
+    FoodItem(name: 'Ayam Geprek', calories: 263, protein: 19, carbs: 16, fat: 14, serving: '1 Porsi (150g)'),
     FoodItem(name: 'Sate Ayam', calories: 150, protein: 18, carbs: 5, fat: 6, serving: '5 Tusuk'),
     FoodItem(name: 'Bakso Sapi', calories: 320, protein: 15, carbs: 25, fat: 18, serving: '1 Mangkok'),
     FoodItem(name: 'Mie Goreng', calories: 380, protein: 8, carbs: 56, fat: 14, serving: '1 Porsi'),
+    FoodItem(name: 'Mie Instan', calories: 380, protein: 8, carbs: 54, fat: 14, serving: '1 Bungkus (80g)'),
     FoodItem(name: 'Gado-Gado', calories: 295, protein: 12, carbs: 35, fat: 14, serving: '1 Porsi'),
     FoodItem(name: 'Kopi Susu', calories: 120, protein: 3, carbs: 15, fat: 5, serving: '1 Gelas'),
     FoodItem(name: 'Apel', calories: 52, protein: 0, carbs: 14, fat: 0, serving: '1 Buah (100g)'),
@@ -38,6 +40,9 @@ class FatSecretService {
     FoodItem(name: 'Jus Alpukat', calories: 195, protein: 2, carbs: 22, fat: 12, serving: '1 Gelas'),
     FoodItem(name: 'Soto Ayam', calories: 312, protein: 18, carbs: 28, fat: 14, serving: '1 Mangkok'),
     FoodItem(name: 'Rendang Sapi', calories: 195, protein: 14, carbs: 3, fat: 15, serving: '1 Potong'),
+    FoodItem(name: 'Martabak Manis', calories: 270, protein: 6, carbs: 37, fat: 11, serving: '1 Potong (60g)'),
+    FoodItem(name: 'Nasi Uduk', calories: 260, protein: 5, carbs: 40, fat: 9, serving: '1 Porsi (150g)'),
+    FoodItem(name: 'Pecel Lele', calories: 220, protein: 18, carbs: 0, fat: 15, serving: '1 Porsi (120g)'),
   ];
 
   Future<void> _fetchToken() async {
@@ -58,7 +63,7 @@ class FatSecretService {
         },
         body: {
           'grant_type': 'client_credentials',
-          'scope': 'foods',
+          'scope': 'basic',
         },
       );
 
