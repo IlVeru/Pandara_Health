@@ -1,0 +1,45 @@
+import 'dart:convert';
+
+class FoodItem {
+  final String name;
+  final int calories;
+  final int protein;
+  final int carbs;
+  final int fat;
+  final String serving;
+
+  FoodItem({
+    required this.name,
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    required this.serving,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'calories': calories,
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+      'serving': serving,
+    };
+  }
+
+  factory FoodItem.fromMap(Map<String, dynamic> map) {
+    return FoodItem(
+      name: map['name'] ?? '',
+      calories: map['calories'] ?? 0,
+      protein: map['protein'] ?? 0,
+      carbs: map['carbs'] ?? 0,
+      fat: map['fat'] ?? 0,
+      serving: map['serving'] ?? '',
+    );
+  }
+
+  String toJson() => json.encode(toMap());
+
+  factory FoodItem.fromJson(String source) => FoodItem.fromMap(json.decode(source));
+}
