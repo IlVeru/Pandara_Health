@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
 class DoctorProfilePage extends StatelessWidget {
@@ -234,7 +235,34 @@ class DoctorProfilePage extends StatelessWidget {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: () {},
+          onPressed: () async {
+            const String name = "Dr. Sarah Anindita";
+            const String phone = "6285176914026";
+            final String message = "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.";
+            final Uri url = Uri.parse("https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
+            try {
+              final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+              if (!launched) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terinstal.'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Terjadi kesalahan: $e'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            }
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             minimumSize: const Size(double.infinity, 56),

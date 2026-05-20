@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
 class ConsultationPage extends StatelessWidget {
@@ -59,11 +60,11 @@ class ConsultationPage extends StatelessWidget {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Sarah Wijaya', 'Spesialis Penyakit Dalam', '8 Thn', 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200'),
+                    _buildDoctorCard(context, 'Dr. Sarah Wijaya', 'Spesialis Penyakit Dalam', '8 Thn', 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200', '6285176914026'),
                     const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Adrian Pratama', 'Spesialis Jantung', '12 Thn', 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200'),
+                    _buildDoctorCard(context, 'Dr. Adrian Pratama', 'Spesialis Jantung', '12 Thn', 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200', '6285176914026'),
                     const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Budi Santoso', 'Dokter Umum', '15 Thn', 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200'),
+                    _buildDoctorCard(context, 'Dr. Budi Santoso', 'Dokter Umum', '15 Thn', 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200', '6285176914026'),
                   ],
                 ),
               ),
@@ -168,7 +169,7 @@ class ConsultationPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDoctorCard(BuildContext context, String name, String spec, String exp, String img) {
+  Widget _buildDoctorCard(BuildContext context, String name, String spec, String exp, String img, String phone) {
     Color chipColor;
     Color textColor;
     IconData specIcon;
@@ -266,8 +267,31 @@ class ConsultationPage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
-                  // WhatsApp consultation logic can go here
+                onPressed: () async {
+                  final String message = "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.";
+                  final Uri url = Uri.parse("https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
+                  try {
+                    final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                    if (!launched) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terinstal.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Terjadi kesalahan: $e'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
