@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pandara_health/core/constants/weekly_report_data.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
 class ConsultationPage extends StatelessWidget {
@@ -268,8 +269,9 @@ class ConsultationPage extends StatelessWidget {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
-                  final String message = "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.";
-                  final Uri url = Uri.parse("https://wa.me/$phone?text=${Uri.encodeComponent(message)}");
+                  final String reportText = WeeklyReportData.getFormattedReportText();
+                  final String message = "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.\n\n$reportText\n\nMohon arahannya dokter, terima kasih.";
+                  final Uri url = Uri.parse("https://api.whatsapp.com/send?phone=$phone&text=${Uri.encodeComponent(message)}");
                   try {
                     final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
                     if (!launched) {

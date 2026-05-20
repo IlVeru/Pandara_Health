@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/weekly_report_data.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
 class WeeklyReportPage extends StatelessWidget {
@@ -41,7 +42,7 @@ class WeeklyReportPage extends StatelessWidget {
                       children: [
                         const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black38),
                         const SizedBox(width: 8),
-                        const Text('12 Mei - 18 Mei 2024', style: TextStyle(color: Colors.black38)),
+                        const Text(WeeklyReportData.dateRange, style: TextStyle(color: Colors.black38)),
                         const Icon(Icons.keyboard_arrow_down, size: 20, color: Colors.black38),
                       ],
                     ),
@@ -60,9 +61,9 @@ class WeeklyReportPage extends StatelessWidget {
                     // Small Summary Row
                     Row(
                       children: [
-                        _buildSummaryCard(Icons.sentiment_satisfied_alt, '+5%', 'Mood', 'Stabil', Colors.orange, [1, 1, 1, 0.4]),
+                        _buildSummaryCard(Icons.sentiment_satisfied_alt, WeeklyReportData.moodImprovement, 'Mood', WeeklyReportData.moodStatus, Colors.orange, [1, 1, 1, 0.4]),
                         const SizedBox(width: 16),
-                        _buildSummaryCard(Icons.directions_run, '-2%', 'Aktivitas', 'Aktif', Colors.teal, [1, 1, 0.4, 0.4]),
+                        _buildSummaryCard(Icons.directions_run, WeeklyReportData.activityChange, 'Aktivitas', WeeklyReportData.activityStatus, Colors.teal, [1, 1, 0.4, 0.4]),
                       ],
                     ),
                     
@@ -72,9 +73,9 @@ class WeeklyReportPage extends StatelessWidget {
                     _buildExpertRecommendation(),
                     
                     const SizedBox(height: 24),
-                    _buildDetailItem(Icons.favorite, 'Detak Jantung Rata-rata', '72 BPM', Colors.redAccent),
+                    _buildDetailItem(Icons.favorite, 'Detak Jantung Rata-rata', WeeklyReportData.avgHeartRate, Colors.redAccent),
                     const SizedBox(height: 12),
-                    _buildDetailItem(Icons.opacity, 'Hidrasi Harian', '2.4 L', Colors.blueAccent),
+                    _buildDetailItem(Icons.opacity, 'Hidrasi Harian', WeeklyReportData.dailyHydration, Colors.blueAccent),
                   ],
                 ),
               ),
@@ -113,9 +114,9 @@ class WeeklyReportPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Tidur Anda meningkat 10% minggu ini',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            'Tidur Anda meningkat ${WeeklyReportData.sleepImprovement.replaceAll('+', '')} minggu ini',
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -139,11 +140,11 @@ class WeeklyReportPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Kualitas Tidur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text('Rata-rata 7j 45m', style: TextStyle(color: Colors.black26, fontSize: 13)),
+                  const Text('Kualitas Tidur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text('Rata-rata ${WeeklyReportData.sleepQuality}', style: const TextStyle(color: Colors.black26, fontSize: 13)),
                 ],
               ),
               Container(
@@ -250,8 +251,8 @@ class WeeklyReportPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '\"Anda terlihat kurang bergerak di hari kerja. Coba jalan kaki 15 menit setiap jam istirahat makan siang.\"',
+                 const Text(
+                  '"Anda terlihat kurang bergerak di hari kerja. Coba jalan kaki 15 menit setiap jam istirahat makan siang."',
                   style: TextStyle(color: Colors.black87, fontSize: 13, height: 1.5, fontStyle: FontStyle.italic),
                 ),
                 const SizedBox(height: 12),
