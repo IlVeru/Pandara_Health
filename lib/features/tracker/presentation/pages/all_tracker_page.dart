@@ -1,13 +1,28 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
-class AllTrackerPage extends StatelessWidget {
+class AllTrackerPage extends ConsumerWidget {
   const AllTrackerPage({super.key});
 
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -20,11 +35,17 @@ class AllTrackerPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundColor: AppColors.primary,
-                    child: Icon(Icons.person, color: Colors.white),
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
+                    ),
                   ),
                 ],
               ),

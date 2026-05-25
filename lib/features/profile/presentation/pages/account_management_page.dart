@@ -1,13 +1,29 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
-class AccountManagementPage extends StatelessWidget {
+class AccountManagementPage extends ConsumerWidget {
   const AccountManagementPage({super.key});
 
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -32,9 +48,9 @@ class AccountManagementPage extends StatelessWidget {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1D1D1D)),
                   ),
                   const Spacer(),
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
+                    backgroundImage: _getProfileImage(user?.profilePic),
                   ),
                 ],
               ),
@@ -55,28 +71,21 @@ class AccountManagementPage extends StatelessWidget {
                     InkWell(
                       onTap: () => context.push('/change_password'),
                       borderRadius: BorderRadius.circular(24),
-                      child: _buildSettingsCard(Icons.lock_reset, 'Ganti Password', 'Terakhir diubah 3 bulan lalu'),
+                      child: _buildSettingsCard(Icons.lock_reset, 'Ganti Password', 'Amankan kredensial masuk Anda'),
                     ),
                     const SizedBox(height: 16),
                     InkWell(
                       onTap: () => context.push('/change_email'),
                       borderRadius: BorderRadius.circular(24),
-                      child: _buildSettingsCard(Icons.email_outlined, 'Ganti Email', 'user@pandara.health'),
+                      child: _buildSettingsCard(Icons.email_outlined, 'Ganti Email', user?.email ?? 'user@pandara.health'),
                     ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Sync Section
-                    const Text('AKSES & SINKRONISASI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black38, letterSpacing: 1.2)),
-                    const SizedBox(height: 16),
-                    _buildSyncCard(),
                     
                     const SizedBox(height: 32),
                     
                     // Danger Zone
                     const Text('ZONA BERBAHAYA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent, letterSpacing: 1.2)),
                     const SizedBox(height: 16),
-                    _buildDangerZone(),
+                    _buildDangerZone(context, ref),
                   ],
                 ),
               ),
@@ -149,38 +158,7 @@ class AccountManagementPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSyncCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5, style: BorderStyle.solid),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(16)),
-            child: const Icon(Icons.person_add_alt_1_outlined, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Tambah Akun Baru', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary)),
-                Text('Hubungkan profil keluarga', style: TextStyle(color: Colors.black26, fontSize: 13)),
-              ],
-            ),
-          ),
-          const Icon(Icons.add, color: AppColors.primary),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDangerZone() {
+  Widget _buildDangerZone(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -196,7 +174,7 @@ class AccountManagementPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () => _showDeleteConfirmation(context, ref),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               minimumSize: const Size(double.infinity, 56),
@@ -214,6 +192,37 @@ class AccountManagementPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus Akun Permanen?'),
+          content: const Text('Apakah Anda yakin ingin menghapus akun ini secara permanen? Seluruh riwayat dan data Anda akan hilang dan tidak dapat dipulihkan.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.black54)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final authRepo = ref.read(authRepositoryProvider);
+                await authRepo.deleteAccount();
+                ref.read(currentUserProvider.notifier).state = null;
+                if (context.mounted) {
+                  context.go('/welcome');
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              child: const Text('Ya, Hapus'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

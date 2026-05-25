@@ -1,13 +1,82 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
-class ChangeEmailPage extends StatelessWidget {
+class ChangeEmailPage extends ConsumerStatefulWidget {
   const ChangeEmailPage({super.key});
 
   @override
+  ConsumerState<ChangeEmailPage> createState() => _ChangeEmailPageState();
+}
+
+class _ChangeEmailPageState extends ConsumerState<ChangeEmailPage> {
+  late TextEditingController _newEmailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _newEmailController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _newEmailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _changeEmail() async {
+    final newEmail = _newEmailController.text.trim();
+    if (newEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email baru tidak boleh kosong!'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(newEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Format email tidak valid!'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    final authRepo = ref.read(authRepositoryProvider);
+    final user = authRepo.getCurrentUser();
+    if (user != null && user.email == newEmail) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email baru harus berbeda dengan email saat ini!'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    final success = await authRepo.updateEmail(newEmail);
+    if (success) {
+      ref.read(currentUserProvider.notifier).state = authRepo.getCurrentUser();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Email berhasil diubah!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        context.pop();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email sudah terdaftar pada akun lain!'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -53,7 +122,7 @@ class ChangeEmailPage extends StatelessWidget {
                     // Form
                     const Text('Email Saat Ini', style: TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    _buildCurrentEmailField(),
+                    _buildCurrentEmailField(user?.email ?? '...'),
                     
                     const SizedBox(height: 24),
                     
@@ -69,7 +138,7 @@ class ChangeEmailPage extends StatelessWidget {
                     const SizedBox(height: 40),
                     
                     // Action Button
-                    _buildActionButton(context),
+                    _buildActionButton(),
                   ],
                 ),
               ),
@@ -98,18 +167,18 @@ class ChangeEmailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentEmailField() {
+  Widget _buildCurrentEmailField(String email) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.email_outlined, color: Colors.black26),
-          SizedBox(width: 16),
-          Text('andrea.revina@zenith.com', style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w500)),
+          const Icon(Icons.email_outlined, color: Colors.black26),
+          const SizedBox(width: 16),
+          Text(email, style: const TextStyle(color: Colors.black45, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -123,9 +192,11 @@ class ChangeEmailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
-      child: const TextField(
-        decoration: InputDecoration(
-          icon: Text('@', style: TextStyle(color: Colors.black26, fontSize: 18, fontWeight: FontWeight.bold)),
+      child: TextField(
+        controller: _newEmailController,
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(
+          icon: Icon(Icons.alternate_email, color: Colors.black26, size: 20),
           hintText: 'Contoh: nama@email.com',
           hintStyle: TextStyle(color: Colors.black12, fontSize: 14),
           border: InputBorder.none,
@@ -168,9 +239,9 @@ class ChangeEmailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(BuildContext context) {
+  Widget _buildActionButton() {
     return ElevatedButton(
-      onPressed: () => context.pop(),
+      onPressed: _changeEmail,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         minimumSize: const Size(double.infinity, 56),

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,12 +15,21 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+  }
+
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(dashboardStatsProvider);
-    
-    final authRepo = ref.watch(authRepositoryProvider);
-    final user = authRepo.getCurrentUser();
+    final user = ref.watch(currentUserProvider);
     
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
@@ -33,11 +43,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
-                    backgroundColor: AppColors.primary,
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
+                    ),
                   ),
                 ],
               ),
@@ -204,8 +220,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       children: [
         _buildAccessCard(Icons.show_chart, 'Tracker', 'Pantau harian', const Color(0xFFE0F7F9), AppColors.primary, () => context.go('/tracker')),
         _buildAccessCard(Icons.assessment_outlined, 'Laporan', 'Ringkasan mingguan', const Color(0xFFF3E5F5), Colors.purple, () => context.go('/reports')),
-        _buildAccessCard(Icons.shopping_bag_outlined, 'Konsultasi', 'Tanya dokter', const Color(0xFFFFF3E0), Colors.orange, null),
-        _buildAccessCard(Icons.person_outline, 'Profil', 'Atur akun', const Color(0xFFE8F5E9), Colors.green, null),
+        _buildAccessCard(Icons.shopping_bag_outlined, 'Konsultasi', 'Tanya dokter', const Color(0xFFFFF3E0), Colors.orange, () => context.go('/consult')),
+        _buildAccessCard(Icons.person_outline, 'Profil', 'Atur akun', const Color(0xFFE8F5E9), Colors.green, () => context.go('/profile')),
       ],
     );
   }

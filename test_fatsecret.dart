@@ -1,4 +1,5 @@
-import 'dart:io';
+// ignore_for_file: avoid_print
+
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -10,7 +11,7 @@ void main() async {
     Uri.parse('https://oauth.fatsecret.com/connect/token'),
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + base64Encode(utf8.encode('\$clientId:\$clientSecret')),
+      'Authorization': 'Basic ${base64Encode(utf8.encode('$clientId:$clientSecret'))}',
     },
     body: {'grant_type': 'client_credentials', 'scope': 'basic'},
   );
@@ -19,16 +20,16 @@ void main() async {
   
   final response = await http.get(
     Uri.parse('https://platform.fatsecret.com/rest/server.api?method=foods.search&search_expression=nasi%20lemak&format=json'),
-    headers: { 'Authorization': 'Bearer \$token' },
+    headers: { 'Authorization': 'Bearer $token' },
   );
   
   final foods = json.decode(response.body)['foods']['food'];
   final foodId = foods[0]['food_id'];
-  print('First food ID: \$foodId');
+  print('First food ID: $foodId');
   
   final detailResponse = await http.get(
-    Uri.parse('https://platform.fatsecret.com/rest/server.api?method=food.get&food_id=\$foodId&format=json'),
-    headers: { 'Authorization': 'Bearer \$token' },
+    Uri.parse('https://platform.fatsecret.com/rest/server.api?method=food.get&food_id=$foodId&format=json'),
+    headers: { 'Authorization': 'Bearer $token' },
   );
   print(detailResponse.body);
 }

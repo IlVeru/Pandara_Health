@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/data/models/hive_models.dart';
 import '../../../../core/data/models/weekly_report_model.dart';
@@ -15,6 +18,17 @@ class WeeklyReportPage extends ConsumerStatefulWidget {
 }
 
 class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+  }
+
   DateTimeRange selectedRange = DateTimeRange(
     start: DateTime.now().subtract(const Duration(days: 6)),
     end: DateTime.now(),
@@ -80,6 +94,8 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
     final nutritionToday = repo.getDailyNutrition(DateTime.now());
     final totalCalToday = nutritionToday.fold(0, (sum, n) => sum + n.calories);
 
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -92,10 +108,17 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
+                    ),
                   ),
                 ],
               ),

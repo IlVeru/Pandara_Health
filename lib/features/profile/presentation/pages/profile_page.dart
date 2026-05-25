@@ -1,6 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
@@ -8,10 +8,20 @@ import '../../../../core/widgets/app_bottom_nav.dart';
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final repository = ref.watch(authRepositoryProvider);
-    final user = repository.getCurrentUser();
+    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
@@ -25,10 +35,13 @@ class ProfilePage extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  const CircleAvatar(
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
+                  CircleAvatar(
                     radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
+                    backgroundImage: _getProfileImage(user?.profilePic),
                   ),
                 ],
               ),
@@ -40,7 +53,7 @@ class ProfilePage extends ConsumerWidget {
                   children: [
                     const SizedBox(height: 20),
                     // Profile Info
-                    _buildProfileHeader(user?.name ?? 'User', user?.email ?? 'user@pandara.health'),
+                    _buildProfileHeader(user?.name ?? 'User', user?.email ?? 'user@pandara.health', user?.profilePic),
                     const SizedBox(height: 40),
                     // Settings Menu
                     _buildSettingsMenu(context, ref),
@@ -55,29 +68,16 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileHeader(String name, String email) {
+  Widget _buildProfileHeader(String name, String email, String? profilePic) {
     return Column(
       children: [
-        Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: const CircleAvatar(
-                radius: 60,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=400'),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.edit, color: Colors.white, size: 16),
-              ),
-            ),
-          ],
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+          child: CircleAvatar(
+            radius: 60,
+            backgroundImage: _getProfileImage(profilePic),
+          ),
         ),
         const SizedBox(height: 24),
         Text(
@@ -106,13 +106,9 @@ class ProfilePage extends ConsumerWidget {
         children: [
           _buildMenuItem(Icons.person_outline, 'Kelola Profil', Colors.teal, false, onTap: () => context.push('/manage_profile')),
           _buildDivider(),
-          _buildMenuItem(Icons.settings_outlined, 'Pengaturan', Colors.teal, false),
-          _buildDivider(),
           _buildMenuItem(Icons.account_balance_wallet_outlined, 'Manajemen Akun', Colors.teal, false, onTap: () => context.push('/account_management')),
           _buildDivider(),
           _buildMenuItem(Icons.storage_outlined, 'Database Inspector', Colors.orange, false, onTap: () => context.push('/debug_db')),
-          _buildDivider(),
-          _buildMenuItem(Icons.help_outline, 'Bantuan', Colors.teal, false),
           _buildDivider(),
           _buildMenuItem(
             Icons.logout, 

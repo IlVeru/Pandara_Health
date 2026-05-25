@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -87,22 +89,22 @@ class FatSecretService {
   Future<List<FoodItem>> searchFood(String query) async {
     if (query.trim().isEmpty) return [];
 
+    final matchingMock = _mockFoods
+        .where((food) => food.name.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+
     // Jika API Key kosong, gunakan database lokal tiruan (Offline / Mock Mode)
     if (_clientId.isEmpty || _clientSecret.isEmpty) {
       print('FatSecret: API credentials empty, falling back to Mock.');
       await Future.delayed(const Duration(milliseconds: 200));
-      return _mockFoods
-          .where((food) => food.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+      return matchingMock;
     }
 
     try {
       await _fetchToken();
       if (_accessToken == null) {
         print('FatSecret: Failed to acquire access token. Falling back to Mock.');
-        return _mockFoods
-            .where((food) => food.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+        return matchingMock;
       }
 
       print('FatSecret: Searching for "$query"...');
@@ -122,61 +124,75 @@ class FatSecretService {
       );
 
       print('FatSecret Search HTTP Code: ${response.statusCode}');
+      List<FoodItem> apiResults = [];
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('FatSecret Search Response: $data');
+        
+        if (data is Map && data['error'] != null) {
+          print('FatSecret Search API returned error: ${data['error']}. Falling back to mock data.');
+          return matchingMock;
+        }
+        
         final foodsData = data['foods']?['food'];
-        if (foodsData == null) {
-          print('FatSecret: No foods found under "food" key.');
-          return [];
+        if (foodsData != null) {
+          List<dynamic> foodList = [];
+          if (foodsData is List) {
+            foodList = foodsData;
+          } else if (foodsData is Map) {
+            foodList = [foodsData];
+          }
+
+          apiResults = foodList.map((item) {
+            final String name = item['food_name'] ?? '';
+            final String desc = item['food_description'] ?? '';
+
+            // Use correct single-backslash raw string patterns for regex
+            final double rawCalories = _parseDouble(desc, r'Calories:\s*([\d\.,]+)kcal');
+            final double rawProtein  = _parseDouble(desc, r'Protein:\s*([\d\.]+)g');
+            final double rawCarbs    = _parseDouble(desc, r'Carbs:\s*([\d\.]+)g');
+            final double rawFat      = _parseDouble(desc, r'Fat:\s*([\d\.]+)g');
+            final double rawGrams    = _parseServingGrams(desc);
+            final String rawServing  = _parseServing(desc);
+
+            final String foodId = item['food_id']?.toString() ?? '';
+
+            // Normalize to per-100g if serving size is unreasonably large (>500g)
+            final double scale = rawGrams > 500 ? (100.0 / rawGrams) : 1.0;
+            final String serving = rawGrams > 500 ? 'per 100g' : rawServing;
+
+            return FoodItem(
+              foodId: foodId.isNotEmpty ? foodId : null,
+              name: name,
+              calories: (rawCalories * scale).round(),
+              protein:  (rawProtein  * scale).round(),
+              carbs:    (rawCarbs    * scale).round(),
+              fat:      (rawFat      * scale).round(),
+              serving:  serving,
+            );
+          }).toList();
         }
-
-        List<dynamic> foodList = [];
-        if (foodsData is List) {
-          foodList = foodsData;
-        } else if (foodsData is Map) {
-          foodList = [foodsData];
-        }
-
-        return foodList.map((item) {
-          final String name = item['food_name'] ?? '';
-          final String desc = item['food_description'] ?? '';
-
-          // Use correct single-backslash raw string patterns for regex
-          final double rawCalories = _parseDouble(desc, r'Calories:\s*([\d\.,]+)kcal');
-          final double rawProtein  = _parseDouble(desc, r'Protein:\s*([\d\.]+)g');
-          final double rawCarbs    = _parseDouble(desc, r'Carbs:\s*([\d\.]+)g');
-          final double rawFat      = _parseDouble(desc, r'Fat:\s*([\d\.]+)g');
-          final double rawGrams    = _parseServingGrams(desc);
-          final String rawServing  = _parseServing(desc);
-
-          final String foodId = item['food_id']?.toString() ?? '';
-
-          // Normalize to per-100g if serving size is unreasonably large (>500g)
-          final double scale = rawGrams > 500 ? (100.0 / rawGrams) : 1.0;
-          final String serving = rawGrams > 500 ? 'per 100g' : rawServing;
-
-          return FoodItem(
-            foodId: foodId.isNotEmpty ? foodId : null,
-            name: name,
-            calories: (rawCalories * scale).round(),
-            protein:  (rawProtein  * scale).round(),
-            carbs:    (rawCarbs    * scale).round(),
-            fat:      (rawFat      * scale).round(),
-            serving:  serving,
-          );
-        }).toList();
       } else {
         print('FatSecret Search HTTP Failed: ${response.body}');
       }
+
+      // Combine mock results and API results, ensuring no duplicates
+      final Map<String, FoodItem> combined = {};
+      for (var item in matchingMock) {
+        combined[item.name.toLowerCase()] = item;
+      }
+      for (var item in apiResults) {
+        if (!combined.containsKey(item.name.toLowerCase())) {
+          combined[item.name.toLowerCase()] = item;
+        }
+      }
+      return combined.values.toList();
+
     } catch (e) {
       print('FatSecret Search Exception: $e');
     }
 
-    // Jika terjadi kegagalan sistem, kembalikan data mock pencarian
-    return _mockFoods
-        .where((food) => food.name.toLowerCase().contains(query.toLowerCase()))
-        .toList();
+    return matchingMock;
   }
 
   Future<List<FoodItem>> getFoodServings(String foodId, String defaultName) async {
@@ -246,8 +262,6 @@ class FatSecretService {
     }
     return 0.0;
   }
-
-  int _parseValue(String desc, String pattern) => _parseDouble(desc, pattern).round();
 
   /// Extracts gram amount from the serving description.
   /// "Per 1 cup (240g)" → 240.0 | "Per 4,500g" → 4500.0 | "Per 100g" → 100.0

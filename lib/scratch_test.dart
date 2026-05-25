@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'core/constants/weekly_report_data.dart';
 
 void main() {

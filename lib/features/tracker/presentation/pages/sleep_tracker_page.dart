@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:pandara_health/core/data/models/hive_models.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
+import 'package:pandara_health/core/widgets/app_bottom_nav.dart';
 
 class SleepTrackerPage extends ConsumerStatefulWidget {
   const SleepTrackerPage({super.key});
@@ -26,9 +27,6 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
   }
 
   double _calculateDuration() {
-    // Safety check for Web
-    if (_startTime == null || _endTime == null) return 8.0;
-    
     double start = _startTime.hour + (_startTime.minute / 60.0);
     double end = _endTime.hour + (_endTime.minute / 60.0);
     
@@ -84,7 +82,10 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
@@ -185,7 +186,7 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -241,7 +242,6 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
   }
 
   Widget _buildTimePicker(String label, TimeOfDay time, Function(TimeOfDay) onSelected) {
-    // Format manual 24 jam
     final String hour = time.hour.toString().padLeft(2, '0');
     final String minute = time.minute.toString().padLeft(2, '0');
 
@@ -278,7 +278,6 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
       ],
     );
   }
-
 
   Widget _buildQualityCard() {
     return Container(
@@ -386,52 +385,6 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
           ),
         ),
       ),
-    );
-  }
-
-
-  Widget _buildBottomNav() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: BottomNavigationBar(
-        currentIndex: 1,
-        onTap: (index) {
-          if (index == 0) context.go('/dashboard');
-          if (index == 1) context.go('/tracker');
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.black26,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        items: [
-          _buildNavItem(Icons.home_outlined, 'BERANDA', false),
-          _buildNavItem(Icons.show_chart, 'PELACAK', true),
-          _buildNavItem(Icons.assessment_outlined, 'LAPORAN', false),
-          _buildNavItem(Icons.medical_services_outlined, 'KONSULTASI', false),
-          _buildNavItem(Icons.person_outline, 'PROFIL', false),
-        ],
-      ),
-    );
-  }
-
-  BottomNavigationBarItem _buildNavItem(IconData icon, String label, bool isSelected) {
-    return BottomNavigationBarItem(
-      icon: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon),
-      ),
-      label: label,
     );
   }
 }

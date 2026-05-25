@@ -1,13 +1,104 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
-class ManageProfilePage extends StatelessWidget {
+class ManageProfilePage extends ConsumerStatefulWidget {
   const ManageProfilePage({super.key});
 
   @override
+  ConsumerState<ManageProfilePage> createState() => _ManageProfilePageState();
+}
+
+class _ManageProfilePageState extends ConsumerState<ManageProfilePage> {
+  late TextEditingController _nameController;
+  String? _profilePicPath;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = ref.read(authRepositoryProvider).getCurrentUser();
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _profilePicPath = user?.profilePic;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _profilePicPath = image.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengambil foto: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
+  ImageProvider _getProfileImage(String? path) {
+    if (path != null && path.isNotEmpty) {
+      if (path.startsWith('http') || path.startsWith('https')) {
+        return NetworkImage(path);
+      } else {
+        return FileImage(File(path));
+      }
+    }
+    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=400');
+  }
+
+  Future<void> _saveChanges() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama tidak boleh kosong!'), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
+    final authRepo = ref.read(authRepositoryProvider);
+    await authRepo.updateProfile(
+      name: name,
+      profilePic: _profilePicPath,
+    );
+
+    // Update global state immediately
+    ref.read(currentUserProvider.notifier).state = authRepo.getCurrentUser();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profil berhasil diperbarui!'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      context.pop();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -29,9 +120,9 @@ class ManageProfilePage extends StatelessWidget {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                   const Spacer(),
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 20,
-                    backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200'),
+                    backgroundImage: _getProfileImage(_profilePicPath),
                   ),
                 ],
               ),
@@ -46,14 +137,15 @@ class ManageProfilePage extends StatelessWidget {
                     _buildPhotoSection(),
                     const SizedBox(height: 40),
                     // Info Card
-                    _buildInfoCard(),
+                    _buildInfoCard(user?.email ?? 'user@pandara.health'),
                     const SizedBox(height: 40),
                     // Action Button
                     _buildActionButton(context),
                     const SizedBox(height: 24),
                     const Text(
-                      'Terakhir diperbarui: 12 Okt 2023',
+                      'Perubahan disimpan secara langsung di database lokal',
                       style: TextStyle(color: Colors.black38, fontSize: 13),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -69,26 +161,16 @@ class ManageProfilePage extends StatelessWidget {
   Widget _buildPhotoSection() {
     return Column(
       children: [
-        Stack(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: const CircleAvatar(
-                radius: 70,
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=400'),
-              ),
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+            child: CircleAvatar(
+              radius: 70,
+              backgroundImage: _getProfileImage(_profilePicPath),
             ),
-            Positioned(
-              right: 8,
-              bottom: 8,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                child: const Icon(Icons.edit, color: Colors.white, size: 20),
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 16),
         const Text(
@@ -99,7 +181,7 @@ class ManageProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(String email) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -120,15 +202,45 @@ class ManageProfilePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          _buildInputField('Username', '@', 'pandara_user'),
+          _buildReadOnlyField('Email / Akun', email, icon: Icons.email_outlined),
           const SizedBox(height: 20),
-          _buildInputField('Nama Lengkap', null, 'Jane Doe', icon: Icons.person_outline),
+          _buildInputField('Nama Lengkap', null, _nameController, icon: Icons.person_outline),
         ],
       ),
     );
   }
 
-  Widget _buildInputField(String label, String? prefix, String initialValue, {IconData? icon}) {
+  Widget _buildReadOnlyField(String label, String value, {IconData? icon}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.black54, fontSize: 14)),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.015),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, color: Colors.black12),
+                const SizedBox(width: 12),
+              ],
+              Text(
+                value,
+                style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black38),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputField(String label, String? prefix, TextEditingController controller, {IconData? icon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -141,7 +253,7 @@ class ManageProfilePage extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: TextFormField(
-            initialValue: initialValue,
+            controller: controller,
             decoration: InputDecoration(
               icon: prefix != null 
                 ? Text(prefix, style: const TextStyle(color: Colors.black26, fontSize: 18, fontWeight: FontWeight.bold))
@@ -157,7 +269,7 @@ class ManageProfilePage extends StatelessWidget {
 
   Widget _buildActionButton(BuildContext context) {
     return ElevatedButton(
-      onPressed: () => context.pop(),
+      onPressed: _saveChanges,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
         minimumSize: const Size(double.infinity, 56),

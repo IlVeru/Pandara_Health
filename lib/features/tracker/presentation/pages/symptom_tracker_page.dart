@@ -15,7 +15,7 @@ class SymptomTrackerPage extends ConsumerStatefulWidget {
 }
 
 class _SymptomTrackerPageState extends ConsumerState<SymptomTrackerPage> {
-  Map<String, double> _userSymptomSelection = {};
+  final Map<String, double> _userSymptomSelection = {};
 
   Future<void> _saveSymptoms() async {
     if (_userSymptomSelection.isEmpty) {
@@ -67,7 +67,10 @@ class _SymptomTrackerPageState extends ConsumerState<SymptomTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  GestureDetector(
+                    onTap: () => context.go('/dashboard'),
+                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
+                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
