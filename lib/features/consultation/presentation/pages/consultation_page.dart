@@ -8,8 +8,88 @@ import 'package:pandara_health/core/constants/weekly_report_data.dart';
 import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
-class ConsultationPage extends ConsumerWidget {
-  const ConsultationPage({super.key});
+class DoctorModel {
+  final String name;
+  final String spec;
+  final String category; // 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi', 'Mental'
+  final String exp;
+  final String img;
+  final String phone;
+
+  DoctorModel({
+    required this.name,
+    required this.spec,
+    required this.category,
+    required this.exp,
+    required this.img,
+    required this.phone,
+  });
+}
+
+class ConsultationPage extends ConsumerStatefulWidget {
+  final String? initialCategory;
+
+  const ConsultationPage({super.key, this.initialCategory});
+
+  @override
+  ConsumerState<ConsultationPage> createState() => _ConsultationPageState();
+}
+
+class _ConsultationPageState extends ConsumerState<ConsultationPage> {
+  late String _selectedCategory;
+  final List<DoctorModel> _allDoctors = [
+    DoctorModel(
+      name: 'Dr. Sarah Wijaya',
+      spec: 'Spesialis Gizi Klinik',
+      category: 'Gizi',
+      exp: '8 Thn',
+      img: 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200',
+      phone: '6285176914026',
+    ),
+    DoctorModel(
+      name: 'Dr. Adrian Pratama',
+      spec: 'Spesialis Jantung',
+      category: 'Jantung',
+      exp: '12 Thn',
+      img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200',
+      phone: '6285176914026',
+    ),
+    DoctorModel(
+      name: 'Dr. Budi Santoso',
+      spec: 'Dokter Umum',
+      category: 'Umum',
+      exp: '15 Thn',
+      img: 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200',
+      phone: '6285176914026',
+    ),
+    DoctorModel(
+      name: 'Dr. Herman Yusuf',
+      spec: 'Spesialis Paru',
+      category: 'Paru',
+      exp: '10 Thn',
+      img: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=200',
+      phone: '6285176914026',
+    ),
+    DoctorModel(
+      name: 'Rian Hadi, M.Psi',
+      spec: 'Psikolog Klinis',
+      category: 'Mental',
+      exp: '7 Thn',
+      img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200',
+      phone: '6285176914026',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = widget.initialCategory ?? 'Semua';
+    // Normalisasi category jika ada query parameter yang dikirimkan
+    final validCategories = ['Semua', 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi', 'Mental'];
+    if (!validCategories.contains(_selectedCategory)) {
+      _selectedCategory = 'Semua';
+    }
+  }
 
   ImageProvider _getProfileImage(String? profilePic) {
     if (profilePic != null && profilePic.isNotEmpty) {
@@ -23,8 +103,14 @@ class ConsultationPage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+
+    // Saring dokter berdasarkan kategori yang dipilih
+    final filteredDoctors = _selectedCategory == 'Semua'
+        ? _allDoctors
+        : _allDoctors.where((doc) => doc.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -78,16 +164,47 @@ class ConsultationPage extends ConsumerWidget {
                     _buildPromoBanner(),
                     
                     const SizedBox(height: 32),
-                    const Text(
-                      'Daftar Dokter Spesialis Kami',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    Text(
+                      _selectedCategory == 'Semua' 
+                          ? 'Daftar Dokter Spesialis Kami' 
+                          : 'Dokter Spesialis $_selectedCategory',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Sarah Wijaya', 'Spesialis Penyakit Dalam', '8 Thn', 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200', '6285176914026'),
-                    const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Adrian Pratama', 'Spesialis Jantung', '12 Thn', 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200', '6285176914026'),
-                    const SizedBox(height: 16),
-                    _buildDoctorCard(context, 'Dr. Budi Santoso', 'Dokter Umum', '15 Thn', 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200', '6285176914026'),
+                    if (filteredDoctors.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Tidak ada dokter spesialis yang terdaftar di kategori ini.',
+                            style: TextStyle(color: Colors.black38),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredDoctors.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          final doc = filteredDoctors[index];
+                          return _buildDoctorCard(
+                            context, 
+                            doc.name, 
+                            doc.spec, 
+                            doc.exp, 
+                            doc.img, 
+                            doc.phone
+                          );
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -125,18 +242,22 @@ class ConsultationPage extends ConsumerWidget {
   }
 
   Widget _buildCategories() {
-    final categories = ['Semua', 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi'];
+    final categories = ['Semua', 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi', 'Mental'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: categories.map((cat) {
-          final isSelected = cat == 'Semua';
+          final isSelected = cat.toLowerCase() == _selectedCategory.toLowerCase();
           return Container(
             margin: const EdgeInsets.only(right: 12),
             child: FilterChip(
               label: Text(cat),
               selected: isSelected,
-              onSelected: (val) {},
+              onSelected: (val) {
+                setState(() {
+                  _selectedCategory = cat;
+                });
+              },
               backgroundColor: Colors.white,
               selectedColor: AppColors.primary,
               labelStyle: TextStyle(
@@ -197,10 +318,10 @@ class ConsultationPage extends ConsumerWidget {
     Color textColor;
     IconData specIcon;
 
-    if (spec.contains('Dalam')) {
-      chipColor = const Color(0xFFFFF3E0); // soft orange
-      textColor = const Color(0xFFE65100);
-      specIcon = Icons.healing_rounded;
+    if (spec.contains('Gizi') || spec.contains('Nutrisi')) {
+      chipColor = const Color(0xFFE8F5E9); // soft green
+      textColor = const Color(0xFF2E7D32);
+      specIcon = Icons.restaurant_outlined;
     } else if (spec.contains('Jantung')) {
       chipColor = const Color(0xFFFFEBEE); // soft red
       textColor = const Color(0xFFC62828);
@@ -209,6 +330,14 @@ class ConsultationPage extends ConsumerWidget {
       chipColor = const Color(0xFFE8F5E9); // soft green
       textColor = const Color(0xFF2E7D32);
       specIcon = Icons.child_care_rounded;
+    } else if (spec.contains('Paru')) {
+      chipColor = const Color(0xFFFFF3E0); // soft orange
+      textColor = const Color(0xFFE65100);
+      specIcon = Icons.air_outlined;
+    } else if (spec.contains('Psikolog') || spec.contains('Mental')) {
+      chipColor = const Color(0xFFECEFF1); // soft grey-blue
+      textColor = const Color(0xFF37474F);
+      specIcon = Icons.psychology_outlined;
     } else {
       // Dokter Umum / default
       chipColor = const Color(0xFFE3F2FD); // soft blue

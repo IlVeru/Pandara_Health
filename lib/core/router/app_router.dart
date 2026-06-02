@@ -70,7 +70,10 @@ class AppRouter {
       ),
       GoRoute(
         path: '/consult',
-        builder: (context, state) => const ConsultationPage(),
+        builder: (context, state) {
+          final category = state.uri.queryParameters['category'];
+          return ConsultationPage(initialCategory: category);
+        },
       ),
       GoRoute(
         path: '/doctor_profile',
