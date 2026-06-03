@@ -9,12 +9,27 @@ import 'package:pandara_health/features/auth/data/repositories/auth_repository.d
 import '../../../../core/widgets/app_bottom_nav.dart';
 
 class DoctorProfilePage extends ConsumerWidget {
-  const DoctorProfilePage({super.key});
+  final String name;
+  final String spec;
+  final String exp;
+  final String img;
+  final String phone;
+
+  const DoctorProfilePage({
+    super.key,
+    required this.name,
+    required this.spec,
+    required this.exp,
+    required this.img,
+    required this.phone,
+  });
 
   ImageProvider _getProfileImage(String? profilePic) {
     if (profilePic != null && profilePic.isNotEmpty) {
       if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
         return NetworkImage(profilePic);
+      } else if (profilePic.startsWith('assets/')) {
+        return AssetImage(profilePic);
       } else {
         return FileImage(File(profilePic));
       }
@@ -69,8 +84,6 @@ class DoctorProfilePage extends ConsumerWidget {
                             _buildInfoCard(),
                             const SizedBox(height: 24),
                             _buildAboutSection(),
-                            const SizedBox(height: 24),
-                            _buildLocationSection(),
                             const SizedBox(height: 32),
                             _buildConsultationAction(context),
                           ],
@@ -94,11 +107,9 @@ class DoctorProfilePage extends ConsumerWidget {
         Container(
           height: 300,
           width: double.infinity,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             image: DecorationImage(
-              image: NetworkImage(
-                'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=600',
-              ),
+              image: _getProfileImage(img),
               fit: BoxFit.cover,
             ),
           ),
@@ -130,6 +141,7 @@ class DoctorProfilePage extends ConsumerWidget {
   }
 
   Widget _buildInfoCard() {
+    final expYears = exp.replaceAll(RegExp(r'[^0-9]'), '');
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -147,105 +159,115 @@ class DoctorProfilePage extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dr. Sarah\nAnindita',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF80E1D1).withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Column(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '8',
-                      style: TextStyle(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Color(0xFF1D5A56),
+                        height: 1.2,
                       ),
                     ),
-                    Text(
-                      'TAHUN',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1D5A56),
-                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.medical_services_outlined,
+                          color: AppColors.primary,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            spec,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Row(
-            children: [
-              Icon(
-                Icons.medical_services_outlined,
-                color: AppColors.primary,
-                size: 16,
+              const SizedBox(width: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Terverifikasi Badge Card
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFBBDEFB)),
+                    ),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.verified,
+                          color: Colors.blue,
+                          size: 18,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'VERIFIED',
+                          style: TextStyle(
+                            fontSize: 7,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Tahun Pengalaman Card
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF80E1D1).withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          expYears.isNotEmpty ? expYears : '—',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Color(0xFF1D5A56),
+                          ),
+                        ),
+                        const Text(
+                          'TAHUN',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1D5A56),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: 8),
-              Text(
-                'Spesialis Kulit & Kelamin',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatBox(Icons.verified_user_outlined, 'Terverifikasi'),
-              _buildStatBox(Icons.thumb_up_outlined, '98% Puas'),
-              _buildStatBox(Icons.groups_outlined, '500+ Pasien'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatBox(IconData icon, String label) {
-    return Container(
-      width: 90,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.black38, size: 20),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
           ),
         ],
       ),
@@ -259,81 +281,17 @@ class DoctorProfilePage extends ConsumerWidget {
         color: Colors.black.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tentang Dokter',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Dr. Sarah Anindita adalah pakar dermatologi dengan fokus pada kesehatan kulit preventif dan perawatan regeneratif. Beliau aktif dalam penelitian klinis untuk pengobatan jerawat dan rejuvenasi kulit.',
-            style: TextStyle(color: Colors.black54, height: 1.6, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(24),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Alamat Praktik',
+            'Tentang Dokter',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.location_on_outlined,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pandara Medical Center,',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      'Jl. Sudirman No. 45, Jakarta Pusat',
-                      style: TextStyle(color: Colors.black38, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'LIHAT DI PETA >',
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
+          const SizedBox(height: 12),
+          Text(
+            '$name adalah seorang $spec berdedikasi tinggi dengan pengalaman praktik selama $exp. Beliau memiliki keahlian mendalam dalam menangani keluhan pasien dan memberikan rekomendasi klinis yang tepat untuk mendukung kualitas hidup Anda.',
+            style: const TextStyle(color: Colors.black54, height: 1.6, fontSize: 14),
           ),
         ],
       ),
@@ -345,8 +303,6 @@ class DoctorProfilePage extends ConsumerWidget {
       children: [
         ElevatedButton(
           onPressed: () async {
-            const String name = "Dr. Sarah Anindita";
-            const String phone = "6285176914026";
             final String reportText = WeeklyReportData.getFormattedReportText();
             final String message =
                 "Halo $name, saya ingin berkonsultasi mengenai kesehatan saya melalui aplikasi Pandara Health.\n\n$reportText\n\nMohon arahannya dokter, terima kasih.";

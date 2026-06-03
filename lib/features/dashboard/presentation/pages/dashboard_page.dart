@@ -41,6 +41,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final triageWarningDismissedNotifier = ref.read(
       triageWarningDismissedProvider.notifier,
     );
+    final triageCriticalAcknowledged = ref.watch(triageCriticalAcknowledgedProvider);
+    final triageCriticalAcknowledgedNotifier = ref.read(
+      triageCriticalAcknowledgedProvider.notifier,
+    );
 
     _maybeShowWarningDialog(
       triageResult,
@@ -104,12 +108,19 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                           style: TextStyle(fontSize: 14, color: Colors.black54),
                         ),
                         const SizedBox(height: 24),
-                        if (triageResult.type == TriageType.warning)
+                        if (triageResult.type == TriageType.critical &&
+                            triageCriticalAcknowledged) ...[
+                          _buildCriticalCard(triageResult),
+                          const SizedBox(height: 24),
+                        ],
+                        if (triageResult.type == TriageType.warning) ...[
                           _buildWarningCard(
                             triageResult,
                             triageWarningDismissed,
                             triageWarningDismissedNotifier,
                           ),
+                          const SizedBox(height: 24),
+                        ],
                         if (triageResult.type == TriageType.habits) ...[
                           _buildHabitBannerSection(triageResult),
                           const SizedBox(height: 24),
@@ -147,8 +158,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
               ],
             ),
-            if (triageResult.type == TriageType.critical)
-              _buildCriticalOverlay(triageResult),
+            if (triageResult.type == TriageType.critical && !triageCriticalAcknowledged)
+              _buildCriticalOverlay(triageResult, triageCriticalAcknowledgedNotifier),
           ],
         ),
       ),
@@ -164,8 +175,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   ) {
     if (triageResult.type != TriageType.warning ||
         isDismissed ||
-        _warningDialogShown)
+        _warningDialogShown) {
       return;
+    }
 
     _warningDialogShown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -263,63 +275,59 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Peringatan Kesehatan',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF5D4037),
-                ),
-              ),
-              InkWell(
-                onTap: () => dismissNotifier.dismiss(),
-                child: const Icon(
-                  Icons.close,
-                  size: 20,
-                  color: Color(0xFF5D4037),
-                ),
+              Row(
+                children: const [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFF57C00),
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Peringatan Kesehatan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5D4037),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             triageResult.description,
-            style: const TextStyle(color: Color(0xFF5D4037)),
+            style: const TextStyle(
+              color: Color(0xFF5D4037),
+              height: 1.4,
+            ),
           ),
-          const SizedBox(height: 12),
-          if (triageResult.recommendedSpecialty != null)
-            Text(
-              'Dominansi: ${triageResult.recommendedSpecialty}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6D4C41),
-              ),
-            ),
-          if (triageResult.totalPoints > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Total poin: ${triageResult.totalPoints}',
-              style: const TextStyle(color: Color(0xFF6D4C41)),
-            ),
-          ],
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => context.go(
-              '/consult?category=${triageResult.recommendedSpecialty ?? 'Semua'}',
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB300),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ElevatedButton(
+                onPressed: () => context.go(
+                  '/consult?category=${triageResult.recommendedSpecialty ?? 'Semua'}',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFB300),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Konsultasi Sekarang',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
-            ),
-            child: const Text(
-              'Konsultasi Sekarang',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            ],
           ),
         ],
       ),
@@ -330,72 +338,101 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Rekomendasi Kebiasaan',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1D1D1D),
-          ),
+        Row(
+          children: const [
+            Icon(
+              Icons.lightbulb_outline_rounded,
+              color: Color(0xFF1565C0),
+              size: 20,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Rekomendasi Kebiasaan',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1D1D1D),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 130,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: triageResult.banners.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final banner = triageResult.banners[index];
-              return GestureDetector(
-                onTap: () => context.go('/consult?category=${banner.category}'),
-                child: Container(
-                  width: 260,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE3F2FD),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1E88E5).withValues(alpha: 0.08),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        banner.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D47A1),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: Text(
-                          banner.description,
-                          style: const TextStyle(color: Color(0xFF0D47A1)),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        banner.actionText,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D47A1),
-                        ),
-                      ),
-                    ],
-                  ),
+        const SizedBox(height: 12),
+        ...triageResult.banners.map((banner) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () => context.go('/consult?category=${banner.category}'),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF90CAF9),
+                  width: 1,
                 ),
-              );
-            },
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1E88E5).withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.tips_and_updates_outlined,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          banner.title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0D47A1),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          banner.description,
+                          style: const TextStyle(
+                            color: Color(0xFF1565C0),
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${banner.actionText} →',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0D47A1),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        )),
       ],
     );
   }
@@ -451,7 +488,101 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
-  Widget _buildCriticalOverlay(TriageResult triageResult) {
+  Widget _buildCriticalCard(TriageResult triageResult) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE53935).withValues(alpha: 0.16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFFFCDD2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(
+                    Icons.dangerous_rounded,
+                    color: Color(0xFFE53935),
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Kondisi Darurat!',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFB71C1C),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            triageResult.description,
+            style: const TextStyle(color: Color(0xFF8E0000)),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              ElevatedButton(
+                onPressed: () => _launchPhoneDialer('112'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE53935),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Hubungi IGD',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => context.go(
+                  '/consult?category=${triageResult.recommendedSpecialty ?? 'Semua'}',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB71C1C),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'Konsultasi Spesialis',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriticalOverlay(
+    TriageResult triageResult,
+    TriageCriticalAcknowledgedNotifier criticalNotifier,
+  ) {
     return Positioned.fill(
       child: Container(
         color: Colors.black.withValues(alpha: 0.45),
@@ -500,43 +631,46 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   style: const TextStyle(color: Color(0xFF8E0000), height: 1.4),
                 ),
                 const SizedBox(height: 24),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _launchPhoneDialer('112'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE53935),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          'Hubungi IGD',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                    ElevatedButton(
+                      onPressed: () {
+                        criticalNotifier.acknowledge();
+                        _launchPhoneDialer('112');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE53935),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
                       ),
+                      child: const Text(
+                        'Hubungi IGD',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => context.go(
+                    ElevatedButton(
+                      onPressed: () {
+                        criticalNotifier.acknowledge();
+                        context.go(
                           '/consult?category=${triageResult.recommendedSpecialty ?? 'Semua'}',
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB71C1C),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB71C1C),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          'Konsultasi Spesialis',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      ),
+                      child: const Text(
+                        'Konsultasi Spesialis',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -580,72 +714,61 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Ringkasan Vital',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Kondisi Anda: ',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const Text(
-                          'Sehat',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            children: const [
+              Text(
+                'Ringkasan Vital',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const Icon(Icons.shield_outlined, color: Colors.white, size: 40),
+              Icon(Icons.shield_outlined, color: Colors.white, size: 40),
             ],
           ),
           const SizedBox(height: 24),
-          Row(
+          Column(
             children: [
-              _buildVitalSubCard(
-                Icons.favorite_outline,
-                'Detak Jantung',
-                stats.heartRate.toString(),
-                'BPM',
+              Row(
+                children: [
+                  _buildVitalSubCard(
+                    Icons.favorite_outline,
+                    'Detak Jantung',
+                    stats.heartRate > 0 ? '${stats.heartRate}' : '—',
+                    'BPM',
+                  ),
+                  const SizedBox(width: 16),
+                  _buildVitalSubCard(
+                    Icons.directions_walk,
+                    'Langkah',
+                    stats.steps > 0 ? '${stats.steps}' : '—',
+                    '',
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              _buildVitalSubCard(
-                Icons.directions_walk,
-                'Langkah Hari Ini',
-                stats.steps.toString(),
-                '',
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  _buildVitalSubCard(
+                    Icons.air,
+                    'Kadar Oksigen',
+                    stats.oxygen != null ? '${stats.oxygen}' : '—',
+                    '% SpO2',
+                  ),
+                  const SizedBox(width: 16),
+                  _buildVitalSubCard(
+                    Icons.bedtime_outlined,
+                    'Tidur',
+                    stats.sleepHours > 0 ? '${stats.sleepHours.toStringAsFixed(1)}' : '—',
+                    'jam',
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () => context.go('/reports'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: AppColors.primary,
@@ -838,23 +961,23 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         'rate': '4.9',
         'exp': '12 Thn',
         'img':
-            'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200',
+            'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=400',
       },
       {
-        'name': 'Dr. Sarah Wijaya',
+        'name': 'Dr. Ilham Nur',
         'spec': 'Spesialis Gizi',
         'rate': '4.8',
         'exp': '8 Thn',
         'img':
-            'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200',
+            'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=400',
       },
       {
-        'name': 'Dr. Budi Santoso',
+        'name': 'Dr. Rakha Buming',
         'spec': 'Umum',
         'rate': '4.7',
         'exp': '15 Thn',
         'img':
-            'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200',
+            'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=400',
       },
     ];
 
@@ -864,7 +987,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             (doc) => Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => context.push('/doctor_profile'),
+                onTap: () => context.push(
+                  Uri(
+                    path: '/doctor_profile',
+                    queryParameters: {
+                      'name': doc['name']!,
+                      'spec': doc['spec']!,
+                      'exp': doc['exp']!,
+                      'img': doc['img']!,
+                      'phone': '6285176914026',
+                    },
+                  ).toString(),
+                ),
                 borderRadius: BorderRadius.circular(24),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 16),

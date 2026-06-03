@@ -2,14 +2,29 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/data/models/hive_models.dart';
-import '../../../../core/data/models/weekly_report_model.dart';
 import '../../../../core/data/repositories/health_repository.dart';
-import '../../../../core/data/services/report_service.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 
+// ─── Period option ────────────────────────────────────────────────────────────
+class _PeriodOption {
+  final String label;
+  final DateTime start;
+  final DateTime end;
+  _PeriodOption({required this.label, required this.start, required this.end});
+}
+
+class _VitalRangeItem {
+  final String label;
+  final String range;
+  final Color color;
+  _VitalRangeItem(this.label, this.range, this.color);
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 class WeeklyReportPage extends ConsumerStatefulWidget {
   const WeeklyReportPage({super.key});
 
@@ -18,83 +33,74 @@ class WeeklyReportPage extends ConsumerStatefulWidget {
 }
 
 class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
-  ImageProvider _getProfileImage(String? profilePic) {
-    if (profilePic != null && profilePic.isNotEmpty) {
-      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
-        return NetworkImage(profilePic);
-      } else {
-        return FileImage(File(profilePic));
+  late _PeriodOption _selected;
+  String _selectedVital = 'HR'; // 'HR', 'STEPS', 'BMI', 'SPO2'
+
+  // ── helpers ────────────────────────────────────────────────────────────────
+  ImageProvider _getProfileImage(String? pic) {
+    if (pic != null && pic.isNotEmpty) {
+      if (pic.startsWith('http') || pic.startsWith('https')) {
+        return NetworkImage(pic);
       }
+      return FileImage(File(pic));
     }
-    return const NetworkImage('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
+    return const NetworkImage(
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200');
   }
 
-  DateTimeRange selectedRange = DateTimeRange(
-    start: DateTime.now().subtract(const Duration(days: 6)),
-    end: DateTime.now(),
-  );
-
-  Future<void> _selectDateRange() async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2023),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      initialDateRange: selectedRange,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              onSurface: Colors.black87,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        selectedRange = picked;
-      });
-    }
-  }
-
-  String _formatRangeLabel() {
-    final months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    final s = selectedRange.start;
-    final e = selectedRange.end;
-    final startMonth = months[s.month - 1];
-    final endMonth = months[e.month - 1];
+  String _fmtRange(DateTime s, DateTime e) {
+    const m = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
     if (s.month == e.month && s.year == e.year) {
-      return "${s.day} - ${e.day} $startMonth ${e.year}";
+      return '${s.day} – ${e.day} ${m[e.month - 1]} ${e.year}';
     }
-    return "${s.day} $startMonth - ${e.day} $endMonth ${e.year}";
+    return '${s.day} ${m[s.month - 1]} – ${e.day} ${m[e.month - 1]} ${e.year}';
   }
 
-  bool _isInRange(DateTime date) {
-    final start = DateTime(selectedRange.start.year, selectedRange.start.month, selectedRange.start.day);
-    final end = DateTime(selectedRange.end.year, selectedRange.end.month, selectedRange.end.day);
-    final d = DateTime(date.year, date.month, date.day);
-    return (d.isAtSameMomentAs(start) || d.isAfter(start)) &&
-           (d.isAtSameMomentAs(end) || d.isBefore(end));
+  int _getDataDaysCount(HealthRepository repo) {
+    final all = <String>{};
+    String key(DateTime d) => '${d.year}-${d.month}-${d.day}';
+    for (final v in Hive.box<VitalsRecord>('vitals_box').values) { all.add(key(v.date)); }
+    for (final m in repo.getAllMoods()) { all.add(key(m.date)); }
+    for (final s in repo.getAllSleep()) { all.add(key(s.date)); }
+    for (final n in Hive.box<NutritionRecord>('nutrition_box').values) { all.add(key(n.date)); }
+    for (final sym in Hive.box<SymptomRecord>('symptom_box').values) { all.add(key(sym.date)); }
+    return all.isEmpty ? 0 : all.length;
   }
 
   @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = today.subtract(const Duration(days: 6));
+    _selected = _PeriodOption(
+      label: _fmtRange(start, today),
+      start: start,
+      end: today,
+    );
+  }
+
+  // ── build ──────────────────────────────────────────────────────────────────
+  @override
   Widget build(BuildContext context) {
-    final reportService = ref.watch(reportServiceProvider);
     final repo = ref.watch(healthRepositoryProvider);
-    final report = reportService.getReportForDate(selectedRange.start);
-
-    // Tracker data for selected period
-    final moods = repo.getAllMoods().where((m) => _isInRange(m.date)).toList();
-    final sleeps = repo.getAllSleep().where((s) => _isInRange(s.date)).toList();
-    final vitals = repo.getLatestVitals();
-    final nutritionToday = repo.getDailyNutrition(DateTime.now());
-    final totalCalToday = nutritionToday.fold(0, (sum, n) => sum + n.calories);
-
     final user = ref.watch(currentUserProvider);
+    final days = _getDataDaysCount(repo);
+
+    final start = _selected.start;
+    final end   = _selected.end;
+
+    // Kode seeder dinonaktifkan sesuai permintaan (jangan dihapus)
+    // final reportService = ref.watch(reportServiceProvider);
+    // final report = reportService.getReportForDate(start);
+
+    final sleeps    = repo.getSleepByRange(start, end);
+    final moods     = repo.getMoodsByRange(start, end);
+    final vitals    = repo.getVitalsByRange(start, end);
+    final nutrition = repo.getNutritionByRange(start, end);
+    final symptoms  = repo.getSymptomsByRange(start, end);
+
+    final latestVital = vitals.isNotEmpty ? vitals.last : repo.getLatestVitals();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
@@ -123,9 +129,10 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
                 ],
               ),
             ),
+
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -134,12 +141,44 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    // Dynamic date range button
-                    InkWell(
-                      onTap: _selectDateRange,
-                      borderRadius: BorderRadius.circular(12),
+
+                    // ── Calendar Selection Dropdown ─────────────────────────
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                          initialDateRange: DateTimeRange(
+                            start: _selected.start,
+                            end: _selected.end,
+                          ),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  surface: Colors.white,
+                                  onSurface: Colors.black87,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selected = _PeriodOption(
+                              label: _fmtRange(picked.start, picked.end),
+                              start: picked.start,
+                              end: picked.end,
+                            );
+                          });
+                        }
+                      },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
@@ -151,132 +190,61 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
                             const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.primary),
                             const SizedBox(width: 8),
                             Text(
-                              _formatRangeLabel(),
-                              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                              _selected.label,
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.keyboard_arrow_down, color: AppColors.primary, size: 16),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
 
-                    if (report == null)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32.0),
-                          child: Text(
-                            "Tidak ada laporan untuk periode ini.\nSilakan pilih tanggal lain.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black54),
-                          ),
+                    const SizedBox(height: 20),
+
+                    // ── New User Banner ─────────────────────────────────────
+                    if (days < 7) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF9EE),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFFE0B2)),
                         ),
-                      )
-                    else ...[
-                      // Main Insight Card
-                      _buildInsightCard(report),
-                      const SizedBox(height: 24),
-
-                      // Sleep Quality Card
-                      _buildSleepQualityCard(report),
-                      const SizedBox(height: 24),
-
-                      // Mood & Activity summary
-                      Row(
-                        children: [
-                          _buildSummaryCard(Icons.sentiment_satisfied_alt, report.moodImprovement, 'Mood', report.moodStatus, Colors.orange, [1, 1, 1, 0.4]),
-                          const SizedBox(width: 16),
-                          _buildSummaryCard(Icons.directions_run, report.activityChange, 'Aktivitas', report.activityStatus, Colors.teal, [1, 1, 0.4, 0.4]),
-                        ],
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline_rounded, color: Colors.orange, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                days == 0
+                                    ? 'Belum ada data tersimpan. Mulai catat kesehatanmu via menu Tracker.'
+                                    : 'Periode laporan hanya tersedia dalam format mingguan. Berikut adalah ringkasan data Anda selama $days hari terakhir. Ringkasan penuh akan tersedia setelah pengisian mencapai satu minggu.',
+                                style: const TextStyle(color: Color(0xFFD84315), fontSize: 12, height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Heart rate & Hydration
-                      _buildDetailItem(Icons.favorite, 'Detak Jantung Rata-rata', report.avgHeartRate, Colors.redAccent),
-                      const SizedBox(height: 12),
-                      _buildDetailItem(Icons.opacity, 'Hidrasi Harian', report.dailyHydration, Colors.blueAccent),
                     ],
 
-                    // ── TRACKER RECAP SECTION ────────────────────────────────
-                    const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Rekap Tracker',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            _formatRangeLabel(),
-                            style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // ── Cards ───────────────────────────────────────────────
+                    _buildSleepCard(sleeps),
                     const SizedBox(height: 16),
-
-                    // Mood Recap
-                    _buildTrackerRecapCard(
-                      icon: Icons.sentiment_satisfied_alt,
-                      label: 'Suasana Hati',
-                      color: Colors.orange,
-                      content: moods.isEmpty
-                          ? null
-                          : _buildMoodRecap(moods),
-                      emptyLabel: 'Belum ada data mood pada periode ini.',
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Sleep Recap
-                    _buildTrackerRecapCard(
-                      icon: Icons.bedtime_outlined,
-                      label: 'Tidur',
-                      color: Colors.indigo,
-                      content: sleeps.isEmpty
-                          ? null
-                          : _buildSleepRecap(sleeps),
-                      emptyLabel: 'Belum ada data tidur pada periode ini.',
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Vitals Recap
-                    _buildTrackerRecapCard(
-                      icon: Icons.monitor_heart_outlined,
-                      label: 'Vital Terkini',
-                      color: Colors.redAccent,
-                      content: vitals == null
-                          ? null
-                          : _buildVitalsRecap(vitals),
-                      emptyLabel: 'Belum ada data vital yang tersimpan.',
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Nutrition Recap
-                    _buildTrackerRecapCard(
-                      icon: Icons.restaurant_menu,
-                      label: 'Nutrisi Hari Ini',
-                      color: Colors.green,
-                      content: nutritionToday.isEmpty
-                          ? null
-                          : _buildNutritionRecap(totalCalToday, nutritionToday),
-                      emptyLabel: 'Belum ada data nutrisi hari ini.',
-                    ),
+                    _buildVitalsCard(latestVital, vitals),
+                    const SizedBox(height: 16),
+                    _buildNutritionCard(nutrition),
+                    const SizedBox(height: 16),
+                    _buildMoodCard(moods),
+                    const SizedBox(height: 16),
+                    _buildSymptomsCard(symptoms),
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -289,22 +257,28 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
     );
   }
 
-  // ── TRACKER RECAP BUILDERS ─────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // CARD BUILDERS
+  // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildTrackerRecapCard({
+  Widget _sectionCard({
     required IconData icon,
-    required String label,
     required Color color,
-    required Widget? content,
-    required String emptyLabel,
+    required String title,
+    required Widget child,
   }) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -314,227 +288,301 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 10),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ],
           ),
-          const SizedBox(height: 14),
-          content ??
-              Text(
-                emptyLabel,
-                style: const TextStyle(color: Colors.black38, fontSize: 13),
-              ),
+          const SizedBox(height: 16),
+          child,
         ],
       ),
     );
   }
 
-  Widget _buildMoodRecap(List<MoodRecord> moods) {
-    // Count per mood
-    final count = <String, int>{};
-    for (final m in moods) {
-      count[m.mood] = (count[m.mood] ?? 0) + 1;
+  // ── 1. Sleep ──────────────────────────────────────────────────────────────
+  Widget _buildSleepCard(List<SleepRecord> sleeps) {
+    return _sectionCard(
+      icon: Icons.bedtime_outlined,
+      color: Colors.indigo,
+      title: 'Data Tidur',
+      child: _sleepContent(sleeps),
+    );
+  }
+
+  Widget _sleepContent(List<SleepRecord> sleeps) {
+    final avgHours = sleeps.isEmpty ? 0.0 : sleeps.fold(0.0, (s, r) => s + r.hours) / sleeps.length;
+    final h = avgHours.floor();
+    final m = ((avgHours - h) * 60).round();
+
+    // Quality distribution
+    final qualityCount = <String, int>{};
+    for (final s in sleeps) {
+      qualityCount[s.quality] = (qualityCount[s.quality] ?? 0) + 1;
     }
-    final moodEmojis = {'Angry': '😠', 'Sad': '😔', 'Neutral': '😐', 'Happy': '😊', 'Great': '🤩'};
-    final dominant = count.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    final dominantQ = sleeps.isEmpty ? '0' : qualityCount.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    // Dynamic summary
+    String summary;
+    if (sleeps.isEmpty) {
+      summary = 'Belum ada catatan jadwal tidur Anda di periode ini. Silakan catat tidur harian Anda.';
+    } else if (avgHours >= 7 && (dominantQ == 'Baik' || dominantQ == 'Nyenyak')) {
+      summary = 'Berdasarkan catatan jadwal tidur Anda di periode ini, kualitas dan durasi tidur terpantau sangat baik.';
+    } else if (avgHours < 5) {
+      summary = 'Durasi tidur rata-rata Anda di periode ini cukup singkat. Usahakan tidur minimal 7 jam per malam untuk pemulihan optimal.';
+    } else if (dominantQ == 'Buruk' || dominantQ == 'Kurang') {
+      summary = 'Kualitas tidur Anda dominan "$dominantQ" pada periode ini. Pertimbangkan untuk menjaga konsistensi jam tidur dan bangun.';
+    } else {
+      summary = 'Rata-rata tidur Anda ${h}j ${m}m per malam dengan kualitas $dominantQ. Pertahankan kebiasaan ini.';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text(
-              moodEmojis[dominant.key] ?? '😐',
-              style: const TextStyle(fontSize: 32),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Dominan: ${dominant.key}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                Text(
-                  'Total ${moods.length} catatan',
-                  style: const TextStyle(color: Colors.black38, fontSize: 12),
-                ),
-              ],
-            ),
+            Text('${h}j ${m}m',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo)),
+            const SizedBox(width: 8),
+            const Text('rata-rata / malam',
+                style: TextStyle(color: Colors.black38, fontSize: 12)),
           ],
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: count.entries.map((e) {
-            return Container(
+        // Mini bar chart
+        if (sleeps.isNotEmpty) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: sleeps.take(7).map((s) {
+              final barH = (s.hours / 10).clamp(0.1, 1.0);
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: 40 * barH,
+                      width: 22,
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('${s.hours.toStringAsFixed(0)}j',
+                        style: const TextStyle(fontSize: 9, color: Colors.black38)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ],
+        // Quality chips
+        if (sleeps.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: qualityCount.entries.map((e) => Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
+                color: Colors.indigo.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text('${moodEmojis[e.key] ?? ''} ${e.key} (${e.value}x)', style: const TextStyle(fontSize: 11)),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSleepRecap(List<SleepRecord> sleeps) {
-    final avgHours = sleeps.fold(0.0, (sum, s) => sum + s.hours) / sleeps.length;
-    final avgHoursInt = avgHours.floor();
-    final avgMins = ((avgHours - avgHoursInt) * 60).round();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${avgHoursInt}j ${avgMins}m',
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo),
-            ),
-            const SizedBox(width: 8),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text('rata-rata / malam', style: TextStyle(color: Colors.black38, fontSize: 12)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: sleeps.take(7).map((s) {
-            final barHeight = (s.hours / 10).clamp(0.1, 1.0);
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Column(
-                children: [
-                  Container(
-                    height: 40 * barHeight,
-                    width: 20,
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${s.hours.toStringAsFixed(0)}j', style: const TextStyle(fontSize: 9, color: Colors.black38)),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 8),
-        Text('${sleeps.length} catatan pada periode ini', style: const TextStyle(color: Colors.black38, fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _buildVitalsRecap(VitalsRecord vitals) {
-    return Row(
-      children: [
-        _buildVitalChip(Icons.favorite, '${vitals.heartRate} BPM', 'Detak Jantung', Colors.redAccent),
-        const SizedBox(width: 10),
-        _buildVitalChip(Icons.directions_walk, '${vitals.steps}', 'Langkah', Colors.teal),
-        if (vitals.weight > 0) ...[
-          const SizedBox(width: 10),
-          _buildVitalChip(Icons.scale_outlined, '${vitals.weight} kg', 'Berat', Colors.purple),
+              child: Text('${e.key} (${e.value}x)',
+                  style: const TextStyle(fontSize: 11, color: Colors.indigo, fontWeight: FontWeight.w600)),
+            )).toList(),
+          ),
+          const SizedBox(height: 12),
         ],
+        // Kualitas tidur label
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.indigo.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(summary,
+              style: const TextStyle(color: Color(0xFF3949AB), fontSize: 12, height: 1.5)),
+        ),
       ],
     );
   }
 
-  Widget _buildVitalChip(IconData icon, String value, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
-            Text(label, style: const TextStyle(color: Colors.black38, fontSize: 10)),
-          ],
-        ),
-      ),
+  // ── 2. Vitals (SpO2) ─────────────────────────────────────────────────────
+  Widget _buildVitalsCard(VitalsRecord? latest, List<VitalsRecord> periodVitals) {
+    return _sectionCard(
+      icon: Icons.monitor_heart_outlined,
+      color: Colors.redAccent,
+      title: 'Data Vital Terkini',
+      child: _vitalsContent(latest, periodVitals),
     );
   }
 
-  Widget _buildNutritionRecap(int totalCal, List<NutritionRecord> records) {
-    final totalProtein = records.fold(0, (s, n) => s + n.protein);
-    final totalCarbs = records.fold(0, (s, n) => s + n.carbs);
-    final totalFat = records.fold(0, (s, n) => s + n.fat);
+  Widget _vitalsContent(VitalsRecord? v, List<VitalsRecord> period) {
+    final avgHR = period.isEmpty
+        ? (v?.heartRate ?? 0)
+        : (period.fold(0, (s, r) => s + r.heartRate) / period.length).round();
+    final avgSteps = period.isEmpty
+        ? (v?.steps ?? 0)
+        : (period.fold(0, (s, r) => s + r.steps) / period.length).round();
+
+    final latestWeight = v?.weight ?? 0.0;
+    final latestHeight = v?.height ?? 0;
+    final bmi = (latestWeight > 0 && latestHeight > 0)
+        ? HealthRepository.calculateBMI(latestWeight, latestHeight)
+        : null;
+
+    final spo2 = v?.oxygen;
+
+    final hrVal = avgHR > 0 ? '$avgHR BPM' : '0 BPM';
+    final stepsVal = avgSteps > 0 ? '$avgSteps' : '0';
+    final bmiVal = bmi != null ? bmi.toStringAsFixed(1) : '0';
+    final spo2Val = spo2 != null ? '$spo2%' : '0%';
+
+    Widget infoBox;
+    switch (_selectedVital) {
+      case 'HR':
+        infoBox = _buildVitalInfoBox(
+          title: 'Detak Jantung (Heart Rate)',
+          subtitle: 'Frekuensi detak jantung per menit (BPM) diukur saat istirahat.',
+          color: Colors.redAccent,
+          icon: Icons.favorite,
+          currentValue: hrVal,
+          ranges: [
+            _VitalRangeItem('Lambat (Bradycardia / Buruk)', '< 60 BPM', Colors.orange),
+            _VitalRangeItem('Normal (Ideal)', '60 - 100 BPM', Colors.green),
+            _VitalRangeItem('Cepat (Tachycardia / Intens)', '> 100 BPM', Colors.red),
+          ],
+        );
+        break;
+      case 'STEPS':
+        infoBox = _buildVitalInfoBox(
+          title: 'Jumlah Langkah (Steps)',
+          subtitle: 'Aktivitas fisik harian berdasarkan jumlah langkah kaki.',
+          color: Colors.teal,
+          icon: Icons.directions_walk,
+          currentValue: '$stepsVal langkah',
+          ranges: [
+            _VitalRangeItem('Kurang Aktif (Sedentary)', '< 5.000', Colors.red),
+            _VitalRangeItem('Cukup Aktif', '5.000 - 9.999', Colors.orange),
+            _VitalRangeItem('Aktif (Sangat Baik)', '>= 10.000', Colors.green),
+          ],
+        );
+        break;
+      case 'BMI':
+        infoBox = _buildVitalInfoBox(
+          title: 'Indeks Massa Tubuh (BMI)',
+          subtitle: 'Perbandingan berat badan dengan tinggi badan (kg/m²).',
+          color: Colors.purple,
+          icon: Icons.monitor_weight_outlined,
+          currentValue: bmiVal,
+          ranges: [
+            _VitalRangeItem('Kurang Berat Badan', '< 18.5', Colors.orange),
+            _VitalRangeItem('Normal / Ideal', '18.5 - 24.9', Colors.green),
+            _VitalRangeItem('Kelebihan Berat', '25.0 - 29.9', Colors.orange),
+            _VitalRangeItem('Obesitas', '>= 30.0', Colors.red),
+          ],
+        );
+        break;
+      case 'SPO2':
+      default:
+        infoBox = _buildVitalInfoBox(
+          title: 'Saturasi Oksigen (SpO2)',
+          subtitle: 'Persentase hemoglobin yang membawa oksigen di dalam darah.',
+          color: Colors.blue,
+          icon: Icons.air,
+          currentValue: spo2Val,
+          ranges: [
+            _VitalRangeItem('Normal / Sehat', '95% - 100%', Colors.green),
+            _VitalRangeItem('Rendah (Hypoxia Ringan)', '90% - 94%', Colors.orange),
+            _VitalRangeItem('Sangat Rendah (Hypoxia Berat)', '< 90%', Colors.red),
+          ],
+        );
+        break;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              '$totalCal',
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            const SizedBox(width: 6),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 4),
-              child: Text('kkal hari ini', style: TextStyle(color: Colors.black38, fontSize: 12)),
-            ),
+            _vitalChip(Icons.favorite, hrVal, 'Detak Jantung', Colors.redAccent, _selectedVital == 'HR', () {
+              setState(() => _selectedVital = 'HR');
+            }),
+            const SizedBox(width: 8),
+            _vitalChip(Icons.directions_walk, stepsVal, 'Langkah', Colors.teal, _selectedVital == 'STEPS', () {
+              setState(() => _selectedVital = 'STEPS');
+            }),
+            const SizedBox(width: 8),
+            _vitalChip(Icons.monitor_weight_outlined, bmiVal, 'BMI', Colors.purple, _selectedVital == 'BMI', () {
+              setState(() => _selectedVital = 'BMI');
+            }),
+            const SizedBox(width: 8),
+            _vitalChip(Icons.air, spo2Val, 'SpO2', Colors.blue, _selectedVital == 'SPO2', () {
+              setState(() => _selectedVital = 'SPO2');
+            }),
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildMacroChip('Protein', totalProtein, Colors.redAccent),
-            const SizedBox(width: 8),
-            _buildMacroChip('Karbo', totalCarbs, Colors.orange),
-            const SizedBox(width: 8),
-            _buildMacroChip('Lemak', totalFat, Colors.blueAccent),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text('${records.length} entri makanan hari ini', style: const TextStyle(color: Colors.black38, fontSize: 12)),
+        const SizedBox(height: 14),
+        infoBox,
       ],
     );
   }
 
-  Widget _buildMacroChip(String label, int value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$label: ${value}g',
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+  Widget _vitalChip(IconData icon, String value, String label, Color color, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withValues(alpha: 0.18) : color.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(height: 4),
+              Text(value,
+                  style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              Text(label, style: const TextStyle(color: Colors.black38, fontSize: 9)),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  // ── EXISTING REPORT WIDGETS ────────────────────────────────────────────────
-
-  Widget _buildInsightCard(WeeklyReportModel report) {
+  Widget _buildVitalInfoBox({
+    required String title,
+    required String subtitle,
+    required Color color,
+    required IconData icon,
+    required String currentValue,
+    required List<_VitalRangeItem> ranges,
+  }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF20B2AA), Color(0xFF48D1CC)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,160 +590,275 @@ class _WeeklyReportPageState extends ConsumerState<WeeklyReportPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 12),
-              const Text('INSIGHT UTAMA', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(color: Colors.black54, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Tidur Anda ${report.sleepImprovement.startsWith('-') ? 'menurun' : 'meningkat'} ${report.sleepImprovement.replaceAll('+', '').replaceAll('-', '')} minggu ini',
-            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          const Divider(height: 24, thickness: 0.8),
+          const Text(
+            'Panduan Parameter (Standar Internasional):',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black87),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Kualitas istirahat Anda bervariasi. Pertahankan jadwal tidur yang teratur.',
-            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
-          ),
+          ...ranges.map((r) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: r.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(r.label, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                  ],
+                ),
+                Text(
+                  r.range,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: r.color),
+                ),
+              ],
+            ),
+          )),
         ],
       ),
     );
   }
 
-  Widget _buildSleepQualityCard(WeeklyReportModel report) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Kualitas Tidur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text('Rata-rata ${report.sleepQuality}', style: const TextStyle(color: Colors.black26, fontSize: 13)),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(color: Color(0xFFE0F7F9), shape: BoxShape.circle),
-                child: const Icon(Icons.nightlight_round, color: Color(0xFF20B2AA), size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _buildBar('SN', report.sleepData.isNotEmpty ? report.sleepData[0] : 0.4),
-              _buildBar('SL', report.sleepData.length > 1 ? report.sleepData[1] : 0.6),
-              _buildBar('RB', report.sleepData.length > 2 ? report.sleepData[2] : 1.0, isSelected: true),
-              _buildBar('KM', report.sleepData.length > 3 ? report.sleepData[3] : 0.5),
-              _buildBar('JM', report.sleepData.length > 4 ? report.sleepData[4] : 0.4),
-              _buildBar('SB', report.sleepData.length > 5 ? report.sleepData[5] : 0.3),
-              _buildBar('MG', report.sleepData.length > 6 ? report.sleepData[6] : 0.7),
-            ],
-          ),
-        ],
-      ),
+  // ── 3. Nutrition ──────────────────────────────────────────────────────────
+  Widget _buildNutritionCard(List<NutritionRecord> records) {
+    return _sectionCard(
+      icon: Icons.restaurant_menu,
+      color: Colors.green,
+      title: 'Data Nutrisi Periode Ini',
+      child: _nutritionContent(records),
     );
   }
 
-  Widget _buildBar(String label, double height, {bool isSelected = false}) {
+  Widget _nutritionContent(List<NutritionRecord> records) {
+    final totalCal  = records.isEmpty ? 0 : records.fold(0, (s, n) => s + n.calories);
+    final totalProt = records.isEmpty ? 0 : records.fold(0, (s, n) => s + n.protein);
+    final totalCarb = records.isEmpty ? 0 : records.fold(0, (s, n) => s + n.carbs);
+    final totalFat  = records.isEmpty ? 0 : records.fold(0, (s, n) => s + n.fat);
+
+    // Dynamic summary
+    String summary;
+    if (records.isEmpty) {
+      summary = 'Belum ada catatan data nutrisi Anda pada periode ini.';
+    } else if (totalProt > 50 && totalFat < 80) {
+      summary = 'Selama periode ini, Anda telah mengonsumsi total $totalCal kalori. Asupan protein harian tercukupi dengan baik, dan konsumsi lemak masih dalam batas wajar.';
+    } else if (totalFat >= 80) {
+      summary = 'Selama periode ini, Anda telah mengonsumsi total $totalCal kalori. Asupan protein harian tercukupi, namun perhatikan kembali batas konsumsi lemak Anda yang mencapai ${totalFat}g.';
+    } else if (totalProt < 30) {
+      summary = 'Total $totalCal kalori tercatat di periode ini. Asupan protein perlu ditingkatkan — pastikan cukup sumber protein seperti daging, telur, atau kacang-kacangan.';
+    } else {
+      summary = 'Total $totalCal kalori tercatat pada periode ini. Pantau terus keseimbangan makronutrisi untuk menjaga energi optimal.';
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Total calorie display
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$totalCal',
+              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+            ),
+            const SizedBox(width: 6),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text('kalori total', style: TextStyle(color: Colors.black38, fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Macro chips
+        Row(
+          children: [
+            _macroChip('Protein', totalProt, Colors.redAccent),
+            const SizedBox(width: 8),
+            _macroChip('Karbo', totalCarb, Colors.orange),
+            const SizedBox(width: 8),
+            _macroChip('Lemak', totalFat, Colors.blueAccent),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Summary
         Container(
-          height: 80 * height,
-          width: 36,
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF20B2AA) : const Color(0xFFF0F4F5),
-            borderRadius: BorderRadius.circular(18),
+            color: Colors.green.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
           ),
+          child: Text(summary,
+              style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 12, height: 1.5)),
         ),
-        const SizedBox(height: 12),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: isSelected ? const Color(0xFF20B2AA) : Colors.black26,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+        const SizedBox(height: 8),
+        Text('${records.length} entri makanan tercatat',
+            style: const TextStyle(color: Colors.black38, fontSize: 12)),
       ],
     );
   }
 
-  Widget _buildSummaryCard(IconData icon, String percent, String label, String status, Color color, List<double> pBars) {
+  Widget _macroChip(String label, int value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color.withValues(alpha: 0.6), size: 24),
-                Text(percent, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(label, style: const TextStyle(color: Colors.black38, fontSize: 12)),
-            Text(status, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-            const SizedBox(height: 16),
-            Row(
-              children: pBars.map((p) => Expanded(
-                child: Container(
-                  height: 4,
-                  margin: const EdgeInsets.only(right: 4),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: p),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              )).toList(),
-            ),
+            Text('${value}g',
+                style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14)),
+            Text(label, style: const TextStyle(color: Colors.black38, fontSize: 10)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailItem(IconData icon, String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+  // ── 4. Mood ───────────────────────────────────────────────────────────────
+  Widget _buildMoodCard(List<MoodRecord> moods) {
+    return _sectionCard(
+      icon: Icons.sentiment_satisfied_alt,
+      color: Colors.orange,
+      title: 'Suasana Hati',
+      child: _moodContent(moods),
+    );
+  }
+
+  Widget _moodContent(List<MoodRecord> moods) {
+    const emojis = {'Angry': '😠', 'Sad': '😔', 'Neutral': '😐', 'Happy': '😊', 'Great': '🤩'};
+    final count = <String, int>{};
+    for (final m in moods) {
+      count[m.mood] = (count[m.mood] ?? 0) + 1;
+    }
+    final dominant = moods.isEmpty ? 'Neutral' : count.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(emojis[dominant] ?? '😐', style: const TextStyle(fontSize: 36)),
+            const SizedBox(width: 12),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.black38, fontSize: 12)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(moods.isEmpty ? 'Belum ada data' : 'Dominan: $dominant',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text('${moods.length} catatan pada periode ini',
+                    style: const TextStyle(color: Colors.black38, fontSize: 12)),
               ],
             ),
+          ],
+        ),
+        if (moods.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: count.entries.map((e) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('${emojis[e.key] ?? ''} ${e.key} (${e.value}x)',
+                  style: const TextStyle(fontSize: 11)),
+            )).toList(),
           ),
-          const Icon(Icons.chevron_right, color: Colors.black12),
         ],
-      ),
+      ],
+    );
+  }
+
+  // ── 5. Symptoms ───────────────────────────────────────────────────────────
+  Widget _buildSymptomsCard(List<SymptomRecord> symptoms) {
+    return _sectionCard(
+      icon: Icons.medical_information_outlined,
+      color: Colors.deepOrange,
+      title: 'Gejala Periode Ini',
+      child: _symptomsContent(symptoms),
+    );
+  }
+
+  Widget _symptomsContent(List<SymptomRecord> symptoms) {
+    final standardSymptoms = ['Sakit Kepala', 'Demam', 'Batuk', 'Mual', 'Alergi', 'Kelelahan'];
+    
+    // Aggregate all symptom severities
+    final agg = <String, List<double>>{};
+    for (final rec in symptoms) {
+      rec.symptoms.forEach((name, sev) {
+        agg.putIfAbsent(name, () => []).add(sev);
+      });
+    }
+    final avgSev = agg.map((k, v) => MapEntry(k, v.reduce((a, b) => a + b) / v.length));
+
+    // Sort standardSymptoms descending by severity value
+    final sortedSymptoms = List<String>.from(standardSymptoms)
+      ..sort((a, b) {
+        final sevA = avgSev[a] ?? 0.0;
+        final sevB = avgSev[b] ?? 0.0;
+        return sevB.compareTo(sevA);
+      });
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: sortedSymptoms.map((name) {
+        final severity = avgSev[name] ?? 0.0;
+        final color = severity >= 7 ? Colors.red : (severity >= 4 ? Colors.orange : (severity > 0 ? Colors.teal : Colors.black26));
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            '$name  ${severity > 0 ? severity.toStringAsFixed(1) : '0'}/10',
+            style: TextStyle(fontSize: 12, color: severity > 0 ? color : Colors.black38, fontWeight: FontWeight.w600),
+          ),
+        );
+      }).toList(),
     );
   }
 }

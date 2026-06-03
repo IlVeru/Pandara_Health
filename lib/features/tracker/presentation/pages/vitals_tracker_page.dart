@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:pandara_health/core/data/models/hive_models.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
 import 'package:pandara_health/core/widgets/app_bottom_nav.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 
 class VitalsTrackerPage extends ConsumerStatefulWidget {
   const VitalsTrackerPage({super.key});
@@ -19,6 +21,36 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
   final TextEditingController _heartRateController = TextEditingController(text: '72');
   final TextEditingController _oxygenController = TextEditingController(text: '98');
   final TextEditingController _stepsController = TextEditingController(text: '8000');
+
+  // Live BMI calculation
+  double? _bmi;
+  String _bmiCategory = '';
+
+  void _recalculateBMI() {
+    final w = double.tryParse(_weightController.text);
+    final h = int.tryParse(_heightController.text);
+    if (w != null && h != null && h > 0 && w > 0) {
+      setState(() {
+        _bmi = HealthRepository.calculateBMI(w, h);
+        _bmiCategory = _bmi != null ? HealthRepository.bmiCategory(_bmi!) : '';
+      });
+    } else {
+      setState(() { _bmi = null; _bmiCategory = ''; });
+    }
+  }
+
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage(
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+    );
+  }
 
   @override
   void initState() {
@@ -36,6 +68,23 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
         _oxygenController.text = latest.oxygen.toString();
       }
     }
+    // Recalculate BMI after prefill
+    _recalculateBMI();
+    // Listen for live updates
+    _heightController.addListener(_recalculateBMI);
+    _weightController.addListener(_recalculateBMI);
+  }
+
+  @override
+  void dispose() {
+    _heightController.removeListener(_recalculateBMI);
+    _weightController.removeListener(_recalculateBMI);
+    _heightController.dispose();
+    _weightController.dispose();
+    _heartRateController.dispose();
+    _oxygenController.dispose();
+    _stepsController.dispose();
+    super.dispose();
   }
 
   String _getFormattedDate() {
@@ -74,6 +123,7 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -86,15 +136,19 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                 ],
@@ -156,6 +210,11 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
                         _buildWeightCard(),
                       ],
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // BMI Preview Card
+                    _buildBMIPreviewCard(),
                     
                     const SizedBox(height: 24),
                     
@@ -231,6 +290,102 @@ class _VitalsTrackerPageState extends ConsumerState<VitalsTrackerPage> {
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
+    );
+  }
+
+  Widget _buildBMIPreviewCard() {
+    final Color bmiColor;
+    final Color bgColor;
+    final IconData bmiIcon;
+
+    if (_bmi == null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: const [
+            Icon(Icons.monitor_weight_outlined, color: Colors.black26, size: 20),
+            SizedBox(width: 12),
+            Text(
+              'Isi tinggi & berat badan untuk melihat BMI',
+              style: TextStyle(color: Colors.black38, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_bmi! < 18.5) {
+      bmiColor = Colors.blue;
+      bgColor = const Color(0xFFE3F2FD);
+      bmiIcon = Icons.arrow_downward_rounded;
+    } else if (_bmi! < 25.0) {
+      bmiColor = const Color(0xFF2E7D32);
+      bgColor = const Color(0xFFE8F5E9);
+      bmiIcon = Icons.check_circle_outline;
+    } else if (_bmi! < 30.0) {
+      bmiColor = Colors.orange;
+      bgColor = const Color(0xFFFFF3E0);
+      bmiIcon = Icons.warning_amber_rounded;
+    } else {
+      bmiColor = Colors.red;
+      bgColor = const Color(0xFFFFEBEE);
+      bmiIcon = Icons.error_outline;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: bmiColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: bmiColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(bmiIcon, color: bmiColor, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'INDEKS MASSA TUBUH (BMI)',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black45, letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      _bmi!.toStringAsFixed(1),
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: bmiColor),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '— $_bmiCategory',
+                      style: TextStyle(fontSize: 13, color: bmiColor, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

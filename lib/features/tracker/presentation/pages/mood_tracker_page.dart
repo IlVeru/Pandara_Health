@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
@@ -5,6 +6,7 @@ import 'package:pandara_health/core/data/models/hive_models.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pandara_health/core/widgets/app_bottom_nav.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 
 class MoodTrackerPage extends ConsumerStatefulWidget {
   const MoodTrackerPage({super.key});
@@ -24,6 +26,19 @@ class _MoodTrackerPageState extends ConsumerState<MoodTrackerPage> {
     {'label': 'Happy', 'emoji': '😊'},
     {'label': 'Great', 'emoji': '🤩'},
   ];
+
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage(
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+    );
+  }
 
   Future<void> _saveMood() async {
     final repository = ref.read(healthRepositoryProvider);
@@ -48,6 +63,7 @@ class _MoodTrackerPageState extends ConsumerState<MoodTrackerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -60,15 +76,19 @@ class _MoodTrackerPageState extends ConsumerState<MoodTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                 ],
@@ -213,7 +233,7 @@ class _MoodTrackerPageState extends ConsumerState<MoodTrackerPage> {
                   onTap: () => setState(() => _selectedMood = mood['label']!),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                     decoration: BoxDecoration(
                       color: isSelected ? Colors.white : Colors.transparent,
                       borderRadius: BorderRadius.circular(16),
@@ -223,12 +243,12 @@ class _MoodTrackerPageState extends ConsumerState<MoodTrackerPage> {
                     ),
                     child: Column(
                       children: [
-                        Text(mood['emoji']!, style: const TextStyle(fontSize: 32)),
+                        Text(mood['emoji']!, style: const TextStyle(fontSize: 26)),
                         if (isSelected) ...[
                           const SizedBox(height: 4),
                           Text(
                             mood['label']!,
-                            style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ]
                       ],

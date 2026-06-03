@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../../../core/widgets/app_bottom_nav.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pandara_health/core/data/models/hive_models.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 
 class SymptomTrackerPage extends ConsumerStatefulWidget {
   const SymptomTrackerPage({super.key});
@@ -16,6 +18,19 @@ class SymptomTrackerPage extends ConsumerStatefulWidget {
 
 class _SymptomTrackerPageState extends ConsumerState<SymptomTrackerPage> {
   final Map<String, double> _userSymptomSelection = {};
+
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage(
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+    );
+  }
 
   Future<void> _saveSymptoms() async {
     if (_userSymptomSelection.isEmpty) {
@@ -45,16 +60,17 @@ class _SymptomTrackerPageState extends ConsumerState<SymptomTrackerPage> {
   }
 
   final List<Map<String, dynamic>> _symptoms = [
-    {'name': 'Sakit Kepala', 'icon': Icons.headset_off_outlined},
+    {'name': 'Sakit Kepala', 'icon': Icons.face_outlined},
     {'name': 'Demam', 'icon': Icons.thermostat_outlined},
     {'name': 'Batuk', 'icon': Icons.air_outlined},
-    {'name': 'Mual', 'icon': Icons.sick_outlined},
+    {'name': 'Mual', 'icon': Icons.sentiment_dissatisfied},
     {'name': 'Alergi', 'icon': Icons.spa_outlined},
     {'name': 'Kelelahan', 'icon': Icons.bed_outlined},
   ];
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -67,15 +83,19 @@ class _SymptomTrackerPageState extends ConsumerState<SymptomTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                 ],

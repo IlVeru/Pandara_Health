@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import 'package:pandara_health/core/data/models/food_item.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
 import 'package:pandara_health/core/data/services/fatsecret_service.dart';
 import 'package:pandara_health/core/widgets/app_bottom_nav.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 
 class NutritionTrackerPage extends ConsumerStatefulWidget {
   const NutritionTrackerPage({super.key});
@@ -30,6 +32,19 @@ class _NutritionTrackerPageState extends ConsumerState<NutritionTrackerPage> {
     {'label': 'Makan Malam', 'icon': Icons.nightlight_outlined, 'color': const Color(0xFF3F51B5)},
     {'label': 'Cemilan', 'icon': Icons.cookie_outlined, 'color': const Color(0xFFE91E63)},
   ];
+
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage(
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+    );
+  }
 
   // Shortcut List Makanan Populer
   final List<FoodItem> _shortcuts = [
@@ -152,6 +167,7 @@ class _NutritionTrackerPageState extends ConsumerState<NutritionTrackerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -164,15 +180,19 @@ class _NutritionTrackerPageState extends ConsumerState<NutritionTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                 ],

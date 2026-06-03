@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/hive_models.dart';
 
 final healthRepositoryProvider = Provider((ref) => HealthRepository());
@@ -17,6 +18,17 @@ class HealthRepository {
   Future<void> saveUser(UserModel user) async {
     await _userBox.put('current_user', user);
     await _userBox.flush();
+
+    // Sync profile to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .set({
+          'name': user.name,
+          'email': user.email,
+          'profilePic': user.profilePic,
+        }, SetOptions(merge: true));
   }
 
   UserModel? getUser() {
@@ -27,27 +39,87 @@ class HealthRepository {
   Future<void> addMood(MoodRecord record) async {
     await _moodBox.add(record);
     await _moodBox.flush();
+
+    // Sync to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .collection('moods')
+        .doc(record.date.toIso8601String())
+        .set({
+          'date': record.date.toIso8601String(),
+          'mood': record.mood,
+          'note': record.note,
+        });
   }
 
   List<MoodRecord> getAllMoods() {
     return _moodBox.values.toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
+  List<MoodRecord> getMoodsByRange(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _moodBox.values
+        .where((m) => !m.date.isBefore(s) && !m.date.isAfter(e))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  }
+
   // --- SLEEP TRACKER ---
   Future<void> addSleep(SleepRecord record) async {
     await _sleepBox.add(record);
     await _sleepBox.flush();
+
+    // Sync to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .collection('sleeps')
+        .doc(record.date.toIso8601String())
+        .set({
+          'date': record.date.toIso8601String(),
+          'hours': record.hours,
+          'quality': record.quality,
+          'isRefreshed': record.isRefreshed,
+        });
   }
 
   List<SleepRecord> getAllSleep() {
     return _sleepBox.values.toList()..sort((a, b) => b.date.compareTo(a.date));
   }
 
+  List<SleepRecord> getSleepByRange(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _sleepBox.values
+        .where((r) => !r.date.isBefore(s) && !r.date.isAfter(e))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  }
+
   // --- VITALS TRACKER ---
   Future<void> updateVitals(VitalsRecord record) async {
-    // We can store vitals per day, using date as key or just adding to history
     await _vitalsBox.add(record);
     await _vitalsBox.flush();
+
+    // Sync to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .collection('vitals')
+        .doc(record.date.toIso8601String())
+        .set({
+          'date': record.date.toIso8601String(),
+          'heartRate': record.heartRate,
+          'steps': record.steps,
+          'weight': record.weight,
+          'height': record.height,
+          'oxygen': record.oxygen,
+        });
   }
 
   VitalsRecord? getLatestVitals() {
@@ -55,18 +127,53 @@ class HealthRepository {
     return _vitalsBox.values.last;
   }
 
+  List<VitalsRecord> getVitalsByRange(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _vitalsBox.values
+        .where((v) => !v.date.isBefore(s) && !v.date.isAfter(e))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  }
+
   // --- NUTRITION TRACKER ---
   Future<void> addNutrition(NutritionRecord record) async {
     await _nutritionBox.add(record);
     await _nutritionBox.flush();
+
+    // Sync to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .collection('nutrition')
+        .doc(record.date.toIso8601String())
+        .set({
+          'date': record.date.toIso8601String(),
+          'calories': record.calories,
+          'mealType': record.mealType,
+          'protein': record.protein,
+          'carbs': record.carbs,
+          'fat': record.fat,
+          'selectedFoods': record.selectedFoods,
+        });
   }
 
   List<NutritionRecord> getDailyNutrition(DateTime date) {
-    return _nutritionBox.values.where((rec) => 
-      rec.date.year == date.year && 
-      rec.date.month == date.month && 
+    return _nutritionBox.values.where((rec) =>
+      rec.date.year == date.year &&
+      rec.date.month == date.month &&
       rec.date.day == date.day
     ).toList();
+  }
+
+  List<NutritionRecord> getNutritionByRange(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _nutritionBox.values
+        .where((n) => !n.date.isBefore(s) && !n.date.isAfter(e))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
   }
 
   int getTotalCaloriesToday() {
@@ -79,5 +186,146 @@ class HealthRepository {
   Future<void> addSymptom(SymptomRecord record) async {
     await _symptomBox.add(record);
     await _symptomBox.flush();
+
+    // Sync to Firestore
+    final email = Hive.box('settings_box').get('current_user_email') ?? 'guest_user';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(email)
+        .collection('symptoms')
+        .doc(record.date.toIso8601String())
+        .set({
+          'date': record.date.toIso8601String(),
+          'symptoms': record.symptoms,
+        });
+  }
+
+  List<SymptomRecord> getSymptomsByRange(DateTime start, DateTime end) {
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _symptomBox.values
+        .where((sym) => !sym.date.isBefore(s) && !sym.date.isAfter(e))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+  }
+
+  // --- BMI HELPER ---
+  static double? calculateBMI(double weightKg, int heightCm) {
+    if (heightCm <= 0 || weightKg <= 0) return null;
+    final heightM = heightCm / 100.0;
+    return weightKg / (heightM * heightM);
+  }
+
+  static String bmiCategory(double bmi) {
+    if (bmi < 18.5) return 'Kurus';
+    if (bmi < 25.0) return 'Normal';
+    if (bmi < 30.0) return 'Kelebihan Berat';
+    return 'Obesitas';
+  }
+
+  // --- CLOUD FIRESTORE ONLINE SYNC ---
+  Future<void> syncFromFirestore(String userEmail) async {
+    final firestore = FirebaseFirestore.instance;
+    final userDocRef = firestore.collection('users').doc(userEmail);
+
+    try {
+      // 1. Sync Profile
+      final userDoc = await userDocRef.get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        final user = UserModel(
+          name: data['name'] ?? 'User',
+          email: userEmail,
+          password: '',
+          profilePic: data['profilePic'],
+        );
+        await _userBox.put('current_user', user);
+      }
+
+      // 2. Sync Vitals
+      final vitalsSnap = await userDocRef.collection('vitals').get();
+      await _vitalsBox.clear();
+      for (final doc in vitalsSnap.docs) {
+        final data = doc.data();
+        final record = VitalsRecord(
+          date: DateTime.parse(data['date'] as String),
+          heartRate: data['heartRate'] as int,
+          steps: data['steps'] as int,
+          weight: (data['weight'] as num).toDouble(),
+          height: data['height'] as int?,
+          oxygen: data['oxygen'] as int?,
+        );
+        await _vitalsBox.add(record);
+      }
+
+      // 3. Sync Moods
+      final moodsSnap = await userDocRef.collection('moods').get();
+      await _moodBox.clear();
+      for (final doc in moodsSnap.docs) {
+        final data = doc.data();
+        final record = MoodRecord(
+          date: DateTime.parse(data['date'] as String),
+          mood: data['mood'] as String,
+          note: data['note'] as String,
+        );
+        await _moodBox.add(record);
+      }
+
+      // 4. Sync Sleeps
+      final sleepsSnap = await userDocRef.collection('sleeps').get();
+      await _sleepBox.clear();
+      for (final doc in sleepsSnap.docs) {
+        final data = doc.data();
+        final record = SleepRecord(
+          date: DateTime.parse(data['date'] as String),
+          hours: (data['hours'] as num).toDouble(),
+          quality: data['quality'] as String,
+          isRefreshed: data['isRefreshed'] as bool?,
+        );
+        await _sleepBox.add(record);
+      }
+
+      // 5. Sync Nutrition
+      final nutritionSnap = await userDocRef.collection('nutrition').get();
+      await _nutritionBox.clear();
+      for (final doc in nutritionSnap.docs) {
+        final data = doc.data();
+        final record = NutritionRecord(
+          date: DateTime.parse(data['date'] as String),
+          calories: data['calories'] as int,
+          mealType: data['mealType'] as String,
+          protein: data['protein'] as int,
+          carbs: data['carbs'] as int,
+          fat: data['fat'] as int,
+          selectedFoods: (data['selectedFoods'] as List?)?.cast<String>(),
+        );
+        await _nutritionBox.add(record);
+      }
+
+      // 6. Sync Symptoms
+      final symptomsSnap = await userDocRef.collection('symptoms').get();
+      await _symptomBox.clear();
+      for (final doc in symptomsSnap.docs) {
+        final data = doc.data();
+        final record = SymptomRecord(
+          date: DateTime.parse(data['date'] as String),
+          symptoms: Map<String, double>.from(data['symptoms'] as Map),
+        );
+        await _symptomBox.add(record);
+      }
+
+      // Flush to write instantly
+      await Future.wait([
+        _userBox.flush(),
+        _vitalsBox.flush(),
+        _moodBox.flush(),
+        _sleepBox.flush(),
+        _nutritionBox.flush(),
+        _symptomBox.flush(),
+      ]);
+    } catch (e) {
+      // Biarkan gagal tanpa merusak aplikasi
+      print("Firestore sync error: $e");
+    }
   }
 }

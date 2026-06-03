@@ -77,7 +77,20 @@ class AppRouter {
       ),
       GoRoute(
         path: '/doctor_profile',
-        builder: (context, state) => const DoctorProfilePage(),
+        builder: (context, state) {
+          final name = state.uri.queryParameters['name'] ?? 'Dr. Sarah Wijaya';
+          final spec = state.uri.queryParameters['spec'] ?? 'Spesialis Gizi Klinik';
+          final exp = state.uri.queryParameters['exp'] ?? '8 Thn';
+          final img = state.uri.queryParameters['img'] ?? 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200';
+          final phone = state.uri.queryParameters['phone'] ?? '6285176914026';
+          return DoctorProfilePage(
+            name: name,
+            spec: spec,
+            exp: exp,
+            img: img,
+            phone: phone,
+          );
+        },
       ),
       GoRoute(
         path: '/profile',

@@ -18,6 +18,7 @@ final dashboardStatsProvider = Provider((ref) {
     heartRate: latestVitals?.heartRate ?? 0,
     sleepHours: lastSleepHours,
     weight: latestVitals?.weight ?? 0,
+    oxygen: latestVitals?.oxygen,
   );
 });
 
@@ -27,6 +28,7 @@ class DashboardStats {
   final int heartRate;
   final double sleepHours;
   final double weight;
+  final int? oxygen;
 
   DashboardStats({
     required this.calories,
@@ -34,5 +36,6 @@ class DashboardStats {
     required this.heartRate,
     required this.sleepHours,
     required this.weight,
+    this.oxygen,
   });
 }

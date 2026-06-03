@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "211388663455",
+    "project_id": "pandara-health",
+    "storage_bucket": "pandara-health.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211388663455:android:a844facc706466c9bec4aa",
+        "android_client_info": {
+          "package_name": "com.example.pandara_health"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAySRN6H66IpWqx-f74qkUuRr-fQkdgV2c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

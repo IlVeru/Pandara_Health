@@ -39,11 +39,11 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
   late String _selectedCategory;
   final List<DoctorModel> _allDoctors = [
     DoctorModel(
-      name: 'Dr. Sarah Wijaya',
+      name: 'Dr. Ilham Nur',
       spec: 'Spesialis Gizi Klinik',
       category: 'Gizi',
       exp: '8 Thn',
-      img: 'https://images.unsplash.com/photo-1559839734-2b71f1536783?q=80&w=200',
+      img: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=400',
       phone: '6285176914026',
     ),
     DoctorModel(
@@ -51,15 +51,15 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
       spec: 'Spesialis Jantung',
       category: 'Jantung',
       exp: '12 Thn',
-      img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200',
+      img: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=400',
       phone: '6285176914026',
     ),
     DoctorModel(
-      name: 'Dr. Budi Santoso',
+      name: 'Dr. Rakha Buming',
       spec: 'Dokter Umum',
       category: 'Umum',
       exp: '15 Thn',
-      img: 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=200',
+      img: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=400',
       phone: '6285176914026',
     ),
     DoctorModel(
@@ -67,15 +67,15 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
       spec: 'Spesialis Paru',
       category: 'Paru',
       exp: '10 Thn',
-      img: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=200',
+      img: 'https://plus.unsplash.com/premium_photo-1661764878654-3d0fc2eefcca?q=80&w=400',
       phone: '6285176914026',
     ),
     DoctorModel(
-      name: 'Rian Hadi, M.Psi',
+      name: 'Dr. Muhana Putra',
       spec: 'Psikolog Klinis',
       category: 'Mental',
       exp: '7 Thn',
-      img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=200',
+      img: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400',
       phone: '6285176914026',
     ),
   ];
@@ -84,8 +84,8 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'Semua';
-    // Normalisasi category jika ada query parameter yang dikirimkan
-    final validCategories = ['Semua', 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi', 'Mental'];
+    // Normalisasi category jika ada query parameter yang dikirimkan (kategori Anak dihapus)
+    final validCategories = ['Semua', 'Umum', 'Paru', 'Jantung', 'Gizi', 'Mental'];
     if (!validCategories.contains(_selectedCategory)) {
       _selectedCategory = 'Semua';
     }
@@ -95,6 +95,8 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
     if (profilePic != null && profilePic.isNotEmpty) {
       if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
         return NetworkImage(profilePic);
+      } else if (profilePic.startsWith('assets/')) {
+        return AssetImage(profilePic);
       } else {
         return FileImage(File(profilePic));
       }
@@ -150,20 +152,10 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Search Bar
-                    _buildSearchBar(),
-                    
-                    const SizedBox(height: 24),
-                    
                     // Categories
                     _buildCategories(),
                     
                     const SizedBox(height: 24),
-                    
-                    // Promo Banner
-                    _buildPromoBanner(),
-                    
-                    const SizedBox(height: 32),
                     Text(
                       _selectedCategory == 'Semua' 
                           ? 'Daftar Dokter Spesialis Kami' 
@@ -216,33 +208,8 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.search, color: Colors.black26),
-          SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Cari dokter atau spesialisasi...',
-                hintStyle: TextStyle(color: Colors.black26, fontSize: 14),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCategories() {
-    final categories = ['Semua', 'Umum', 'Anak', 'Paru', 'Jantung', 'Gizi', 'Mental'];
+    final categories = ['Semua', 'Umum', 'Paru', 'Jantung', 'Gizi', 'Mental'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -277,41 +244,7 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
     );
   }
 
-  Widget _buildPromoBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.secondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Konsultasi Pertama\nDiskon 50%',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Mulai perjalanan sehatmu bersama para ahli terbaik kami.',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildDoctorCard(BuildContext context, String name, String spec, String exp, String img, String phone) {
     Color chipColor;
@@ -349,7 +282,18 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
       color: Colors.white,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
-        onTap: () => context.push('/doctor_profile'),
+        onTap: () => context.push(
+          Uri(
+            path: '/doctor_profile',
+            queryParameters: {
+              'name': name,
+              'spec': spec,
+              'exp': exp,
+              'img': img,
+              'phone': phone,
+            },
+          ).toString(),
+        ),
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.all(20),
@@ -367,7 +311,7 @@ class _ConsultationPageState extends ConsumerState<ConsultationPage> {
                     children: [
                       CircleAvatar(
                         radius: 40,
-                        backgroundImage: NetworkImage(img),
+                        backgroundImage: _getProfileImage(img),
                         backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                       ),
                       Positioned(

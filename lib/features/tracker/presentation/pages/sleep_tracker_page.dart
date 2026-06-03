@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:pandara_health/core/constants/app_colors.dart';
 import 'package:pandara_health/core/data/models/hive_models.dart';
 import 'package:pandara_health/core/data/repositories/health_repository.dart';
 import 'package:pandara_health/core/widgets/app_bottom_nav.dart';
+import 'package:pandara_health/features/auth/data/repositories/auth_repository.dart';
 
 class SleepTrackerPage extends ConsumerStatefulWidget {
   const SleepTrackerPage({super.key});
@@ -18,6 +20,19 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
   late TimeOfDay _endTime;
   String _selectedQuality = 'Cukup';
   bool _isRefreshed = true;
+
+  ImageProvider _getProfileImage(String? profilePic) {
+    if (profilePic != null && profilePic.isNotEmpty) {
+      if (profilePic.startsWith('http') || profilePic.startsWith('https')) {
+        return NetworkImage(profilePic);
+      } else {
+        return FileImage(File(profilePic));
+      }
+    }
+    return const NetworkImage(
+      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200',
+    );
+  }
 
   @override
   void initState() {
@@ -70,6 +85,7 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFB),
       body: SafeArea(
@@ -82,15 +98,19 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Image.asset('assets/images/logo_health_fix.png', height: 32),
-                  ),
                   IconButton(
                     onPressed: () => context.pop(),
                     icon: const Icon(Icons.arrow_back, color: Colors.black54),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.black.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => context.go('/profile'),
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _getProfileImage(user?.profilePic),
+                      backgroundColor: AppColors.primary,
                     ),
                   ),
                 ],
@@ -151,10 +171,7 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
                     _buildQualityCard(),
                     
                     const SizedBox(height: 24),
-                    
-                    // Refresh Toggle
-                    _buildRefreshToggle(),
-                    
+
                     const SizedBox(height: 40),
                     ElevatedButton(
                       onPressed: _saveSleep,
@@ -337,54 +354,5 @@ class _SleepTrackerPageState extends ConsumerState<SleepTrackerPage> {
     );
   }
 
-  Widget _buildRefreshToggle() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.05), shape: BoxShape.circle),
-            child: const Icon(Icons.wb_sunny_outlined, color: Colors.blue, size: 24),
-          ),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text('Merasa segar saat bangun?', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-          Column(
-            children: [
-              _buildSmallButton('IYA', _isRefreshed, () => setState(() => _isRefreshed = true)),
-              const SizedBox(height: 8),
-              _buildSmallButton('TIDAK', !_isRefreshed, () => setState(() => _isRefreshed = false)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSmallButton(String label, bool isSelected, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 80,
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : Colors.black12),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(color: isSelected ? Colors.white : Colors.black26, fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -44,6 +44,11 @@ String _triageWarningKeyForToday() {
   return 'triage_warning_dismissed_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
 }
 
+String _triageCriticalKeyForToday() {
+  final now = DateTime.now();
+  return 'triage_critical_acknowledged_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+}
+
 class TriageWarningDismissedNotifier extends StateNotifier<bool> {
   TriageWarningDismissedNotifier() : super(false) {
     final box = Hive.box('settings_box');
@@ -53,6 +58,19 @@ class TriageWarningDismissedNotifier extends StateNotifier<bool> {
   void dismiss() {
     final box = Hive.box('settings_box');
     box.put(_triageWarningKeyForToday(), true);
+    state = true;
+  }
+}
+
+class TriageCriticalAcknowledgedNotifier extends StateNotifier<bool> {
+  TriageCriticalAcknowledgedNotifier() : super(false) {
+    final box = Hive.box('settings_box');
+    state = box.get(_triageCriticalKeyForToday(), defaultValue: false) as bool;
+  }
+
+  void acknowledge() {
+    final box = Hive.box('settings_box');
+    box.put(_triageCriticalKeyForToday(), true);
     state = true;
   }
 }
@@ -89,6 +107,11 @@ class TriageDataRefreshNotifier extends StateNotifier<int> {
 final triageWarningDismissedProvider =
     StateNotifierProvider<TriageWarningDismissedNotifier, bool>(
       (ref) => TriageWarningDismissedNotifier(),
+    );
+
+final triageCriticalAcknowledgedProvider =
+    StateNotifierProvider<TriageCriticalAcknowledgedNotifier, bool>(
+      (ref) => TriageCriticalAcknowledgedNotifier(),
     );
 
 final triageDataRefreshProvider =
